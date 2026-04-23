@@ -1,0 +1,10 @@
+name = "Tables"
+version = "0.1.0"
+defaultTargets = ["tables"]
+
+[[lean_lib]]
+name = "Tables"
+
+[[lean_exe]]
+name = "tables"
+root = "Main"
