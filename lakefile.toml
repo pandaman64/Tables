@@ -2,6 +2,9 @@ name = "Tables"
 version = "0.1.0"
 defaultTargets = ["tables"]
 
+[leanOptions]
+autoImplicit = false
+
 [[lean_lib]]
 name = "Tables"
 
