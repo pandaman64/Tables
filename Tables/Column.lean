@@ -20,6 +20,14 @@ def toString (self : Column) : String :=
 def size (self : Column) : Nat :=
   self.values.size
 
+def concat (self : Column) (other : Column)
+    (_h₁ : self.name = other.name) (h₂ : self.dataType = other.dataType) : Column :=
+  {
+    name := self.name,
+    dataType := self.dataType,
+    values := self.values ++ h₂ ▸ other.values,
+  }
+
 end Column
 
 end Tables
