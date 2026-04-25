@@ -43,12 +43,12 @@ Priority is ordered from foundational operations to advanced transformations.
 - `tfilter :: t1:Table * f:(r:Row -> b:Boolean) -> t2:Table`
 - `dropColumn :: t1:Table * c:ColName -> t2:Table`
 - `dropColumns :: t1:Table * cs:Seq<ColName> -> t2:Table`
-- `distinct :: t1:Table -> t2:Table`
+- `vcat :: t1:Table * t2:Table -> t3:Table`
+- `hcat :: t1:Table * t2:Table -> t3:Table`
 
 ## Phase 4 - Table Combination (Intro Joins)
 
-- `vcat :: t1:Table * t2:Table -> t3:Table`
-- `hcat :: t1:Table * t2:Table -> t3:Table`
+- `distinct :: t1:Table -> t2:Table`
 - `crossJoin :: t1:Table * t2:Table -> t3:Table`
 - `leftJoin :: t1:Table * t2:Table * cs:Seq<ColName> -> t3:Table`
 

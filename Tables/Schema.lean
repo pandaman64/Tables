@@ -7,6 +7,7 @@ public section
 
 namespace Tables
 
+@[ext]
 structure Schema where
   specs : Array (String × DataType)
 deriving Repr, DecidableEq, Inhabited

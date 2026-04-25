@@ -51,6 +51,16 @@ def toString (self : Column) : String :=
 def size (self : Column) : Nat :=
   self.values.size
 
+def get (self : Column) (i : Nat) (h : i < self.size) : self.dataType.toType :=
+  self.values[i]
+
+def push (self : Column) (value : self.dataType.toType) : Column :=
+  {
+    name := self.name,
+    dataType := self.dataType,
+    values := self.values.push value,
+  }
+
 def concat (self : Column) (other : Column)
     (_h₁ : self.name = other.name) (h₂ : self.dataType = other.dataType) : Column :=
   {
