@@ -88,3 +88,4 @@ Priority is ordered from foundational operations to advanced transformations.
 
 - Total items listed (counting overloaded signatures separately): **49**
 - Scope covered: **all functions/properties from `TableAPI.md`**
+

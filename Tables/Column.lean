@@ -59,6 +59,13 @@ def concat (self : Column) (other : Column)
     values := self.values ++ h₂ ▸ other.values,
   }
 
+def take (self : Column) (n : Nat) : Column :=
+  {
+    name := self.name,
+    dataType := self.dataType,
+    values := self.values.take n,
+  }
+
 end Column
 
 end Tables
