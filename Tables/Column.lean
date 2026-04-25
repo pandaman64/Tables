@@ -42,6 +42,7 @@ structure Column where
   name : String
   dataType : DataType
   values : Array dataType.toType
+deriving DecidableEq, Hashable
 
 namespace Column
 

@@ -23,6 +23,7 @@ When manipulating a raw table, we take the minimal amount of proofs needed to ma
 structure Raw where
   columns : Array Column
   nrows : Nat
+deriving DecidableEq, Hashable
 
 namespace Raw
 

@@ -12,10 +12,11 @@ structure Cell where
   name : String
   dataType : DataType
   value : dataType.toType
+deriving DecidableEq, Hashable
 
 structure Row where
   cells : Array Cell
-deriving Inhabited
+deriving Inhabited, DecidableEq, Hashable
 
 namespace Row
 
