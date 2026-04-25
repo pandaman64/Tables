@@ -1,13 +1,14 @@
 module
 
 public import Tables.Column
+public import Tables.Schema
 public import Tables.Error
 
-@[expose]
 public section
 
 namespace Tables
 
+-- THIS WILL BE ABANDONED SOON. WE'LL START WITH Table.Raw. NEVER LOOK AT THIS.
 structure Table where
   columns : Array Column
   nrows : Nat
@@ -25,6 +26,9 @@ def ncols (self : Table) : Nat :=
 
 def header (self : Table) : Array String :=
   self.columns.map (·.name)
+
+def schema (self : Table) : Schema :=
+  { columns := self.columns.map (fun col => (col.name, col.dataType)) }
 
 def addColumn (self : Table) (column : Column)
     (h₁ : column.name ∉ self.header) (h₂ : column.size = self.nrows) : Table :=
@@ -55,6 +59,42 @@ def addColumn? (self : Table) (column : Column) : Except Error Table :=
       .error (.mismatchedRowCount self.nrows column.size)
   else
     .error (.duplicateColumnName column.name)
+
+private def vcatAux (columns₁ columns₂ : Array Column)
+    (h₁ : columns₁.size = columns₂.size)
+    (h₂ : ∀ i, (_ : i < columns₁.size) → columns₁[i].name = columns₂[i].name)
+    (h₃ : ∀ i, (_ : i < columns₁.size) → columns₁[i].dataType = columns₂[i].dataType) : Array Column :=
+  Array.ofFn fun (i : Fin columns₁.size) =>
+    columns₁[i].concat columns₂[i] (h₂ i i.isLt) (h₃ i i.isLt)
+
+section vcatAux
+
+variable {columns₁ columns₂ : Array Column}
+  {h₁ : columns₁.size = columns₂.size}
+  {h₂ : ∀ i, (_ : i < columns₁.size) → columns₁[i].name = columns₂[i].name}
+  {h₃ : ∀ i, (_ : i < columns₁.size) → columns₁[i].dataType = columns₂[i].dataType}
+
+private theorem vcatAux_size : (vcatAux columns₁ columns₂ h₁ h₂ h₃).size = columns₁.size :=
+  by simp [vcatAux]
+
+-- TODO: necessary theorems
+
+end vcatAux
+
+def vcat (self : Table) (other : Table)
+    (h : self.schema = other.schema) : Table :=
+  {
+    columns := vcatAux self.columns other.columns sorry sorry sorry,
+    nrows := self.nrows + other.nrows,
+    wfNoDup := by sorry,
+    wfSize := by sorry,
+  }
+
+def vcat? (self : Table) (other : Table) : Except Error Table :=
+  if h : self.schema = other.schema then
+    .ok (self.vcat other h)
+  else
+    .error (.mismatchedSchema self.schema other.schema)
 
 end Table
 
