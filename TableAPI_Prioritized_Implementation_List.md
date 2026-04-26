@@ -52,14 +52,10 @@ Priority is ordered from foundational operations to advanced transformations.
 - `crossJoin :: t1:Table * t2:Table -> t3:Table`
 - `leftJoin :: t1:Table * t2:Table * cs:Seq<ColName> -> t3:Table`
 
-## Phase 5 - Missing Values + Light Utilities
+## Phase 5 - Light Utilities
 
-- `completeCases :: t:Table * c:ColName -> bs:Seq<Boolean>`
-- `dropna :: t1:Table -> t2:Table`
-- `fillna :: t1:Table * c:ColName * v:Value -> t2:Table`
 - `renameColumns :: t1:Table * ccs:Seq<ColName * ColName> -> t2:Table`
 - `transformColumn :: t1:Table * c:ColName * f:(v1:Value -> v2:Value) -> t2:Table`
-- `update :: t1:Table * f:(r1:Row -> r2:Row) -> t2:Table`
 - `select :: t1:Table * f:(r1:Row * n:Number -> r2:Row) -> t2:Table`
 
 ## Phase 6 - Ordering + Aggregation
@@ -83,6 +79,17 @@ Priority is ordered from foundational operations to advanced transformations.
 - `orderBy :: t1:Table * Seq<Exists K . getKey:(r:Row -> k:K) * compare:(k1:K * k2:K -> Boolean)> -> t2:Table`
 - `groupJoin<K> :: t1:Table * t2:Table * getKey1:(r1:Row -> k1:K) * getKey2:(r2:Row -> k2:K) * aggregate:(r3:Row * t3:Table -> r4:Row) -> t4:Table`
 - `join<K> :: t1:Table * t2:Table * getKey1:(r1:Row -> k1:K) * getKey2:(r2:Row -> k2:K) * combine:(r3:Row * r4:Row -> r5:Row) -> t3:Table`
+
+## Phase 8 - Missing values
+
+- `completeCases :: t:Table * c:ColName -> bs:Seq<Boolean>`
+- `dropna :: t1:Table -> t2:Table`
+- `fillna :: t1:Table * c:ColName * v:Value -> t2:Table`
+
+## Phase 9 - Think later
+
+- `update :: t1:Table * f:(r1:Row -> r2:Row) -> t2:Table`
+  - Maybe a column-based operation is more useful. Let's see what Pandas provides
 
 ## Complete Coverage Check
 

@@ -209,16 +209,24 @@ def ofRows (schema : Schema) (rows : Array Row) (h : ∀ row ∈ rows, row.schem
 def addColumn (self : Raw) (column : Column) : Raw :=
   { columns := self.columns.push column, nrows := self.nrows }
 
-/--
-TableAPI: buildColumn
-
-Note: we require the data type in addition to the column name.
--/
-def buildColumn (self : Raw) (name : String) (dataType : DataType) (f : Row → dataType.toType) (h : ∀ column ∈ self.columns, column.size = self.nrows) : Raw :=
+def buildColumn {α} [DataType.OfType α] (self : Raw) (name : String) (f : Row → α) (h : ∀ column ∈ self.columns, column.size = self.nrows) : Raw :=
   let values := Array.ofFn fun (i : Fin self.nrows) =>
     let row := self.getRow i i.isLt h
     f row
-  self.addColumn { name, dataType, values }
+  self.addColumn (Column.ofValues name values)
+
+def replaceColumn (self : Raw) (column : Column) : Raw :=
+  let columns := self.columns.map fun col =>
+    if col.name = column.name then
+      column
+    else
+      col
+  { columns, nrows := self.nrows }
+
+def transformColumn {α} [DataType.OfType α] (self : Raw) (name : String) (h : self.hasColumn name)
+    (f : (self.getColumnByName name h).dataType.toType → α) : Raw :=
+  let newColumn := (self.getColumnByName name h).mapValues f
+  self.replaceColumn newColumn
 
 /--
 TableAPI: selectRows (overloading 1/2)
@@ -290,6 +298,30 @@ def vcat (self : Raw) (other : Raw) (h : self.schema = other.schema) : Raw :=
 
 def hcat (self : Raw) (other : Raw) : Raw :=
   { columns := self.columns ++ other.columns, nrows := self.nrows }
+
+def renameColumn (self : Raw) (oldName newName : String) : Raw :=
+  let nrows := self.nrows
+  let columns := self.columns.map fun column =>
+    if column.name = oldName then
+      { column with name := newName }
+    else
+      column
+  { columns, nrows }
+
+def renameColumns (self : Raw) (renames : Array (String × String)) : Raw :=
+  renames.foldl (init := self) fun table (oldName, newName) => table.renameColumn oldName newName
+
+/--
+TableAPI: select
+
+Note: it requires an explicit schema, but the API feels too verbose. Maybe we need a typed Row type.
+-/
+def select (self : Raw) (schema : Schema) (f : Row → (n : Nat) → n < self.nrows → Row)
+    (h₁ : ∀ row n h, (f row n h).schema = schema) (h₂ : ∀ column ∈ self.columns, column.size = self.nrows) : Raw :=
+  let rows : Array { row : Row // row.schema = schema } := Array.ofFn fun (i : Fin self.nrows) =>
+    let row := self.getRow i.val i.isLt h₂
+    ⟨f row i.val i.isLt, h₁ row i.val i.isLt⟩
+  ofRows schema rows.unattach (by grind [Array.mem_unattach])
 
 def toString (self : Raw) : String := Id.run do
   let columns := self.columns.map fun column =>

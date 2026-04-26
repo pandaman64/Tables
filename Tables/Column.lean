@@ -84,6 +84,13 @@ def ofValues {α} [DataType.OfType α] (name : String) (values : Array α) : Col
     values := DataType.OfType.eq α ▸ values,
   }
 
+def mapValues {α} [DataType.OfType α] (self : Column) (f : self.dataType.toType → α) : Column :=
+  {
+    name := self.name,
+    dataType := DataType.OfType.dataType α,
+    values := DataType.OfType.eq α ▸ self.values.map f,
+  }
+
 end Column
 
 end Tables
