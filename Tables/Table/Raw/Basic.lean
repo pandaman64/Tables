@@ -351,8 +351,8 @@ def count (self : Raw) (column : String) (h : self.hasColumn column) : Raw :=
     map.alter value fun
       | some count => some (count + 1)
       | none => some 1
-  let (values, counts) := countMap.fold (init := (#[], #[])) fun (values, counts) value count =>
-    (values.push value, counts.push count)
+  let values := countMap.keysArray
+  let counts := countMap.valuesArray
   Raw.ofColumns #[
     { name := "value", dataType := column.dataType, values := values },
     { name := "count", dataType := DataType.nat, values := counts.map some },
