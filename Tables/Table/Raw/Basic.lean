@@ -29,6 +29,12 @@ deriving DecidableEq, Hashable
 
 namespace Raw
 
+def WfColumnSize (self : Raw) : Prop :=
+  ∀ column ∈ self.columns, column.size = self.nrows
+
+def WfColumnNames (self : Raw) : Prop :=
+  ∀ (i j : Fin self.columns.size), i ≠ j → self.columns[i].name ≠ self.columns[j].name
+
 instance : Inhabited Raw :=
   ⟨{ columns := #[], nrows := 0 }⟩
 
@@ -63,7 +69,7 @@ theorem empty_schema {schema : Schema} : (empty schema).schema = schema := by
 def ofColumns (columns : Array Column) (nrows : Nat) : Raw :=
   { columns, nrows }
 
-def getRow (self : Raw) (i : Nat) (h₁ : i < self.nrows) (h₂ : ∀ column ∈ self.columns, column.size = self.nrows) : Row :=
+def getRow (self : Raw) (i : Nat) (h₁ : i < self.nrows) (h₂ : self.WfColumnSize) : Row :=
   let cells := self.columns.attach.map fun column =>
     {
       name := column.val.name,
@@ -78,12 +84,12 @@ def getRow? (self : Raw) (i : Nat) : Option Row := do
   pure { cells }
 
 @[simp, grind =]
-theorem getRow_schema {self : Raw} (i : Nat) (h₁ : i < self.nrows) (h₂ : ∀ column ∈ self.columns, column.size = self.nrows) :
+theorem getRow_schema {self : Raw} (i : Nat) (h₁ : i < self.nrows) (h₂ : self.WfColumnSize) :
     (self.getRow i h₁ h₂).schema = self.schema := by
   simp [Raw.getRow, Raw.schema, Row.schema]
 
 @[simp, grind =]
-theorem getRow_size {self : Raw} (i : Nat) (h₁ : i < self.nrows) (h₂ : ∀ column ∈ self.columns, column.size = self.nrows) :
+theorem getRow_size {self : Raw} (i : Nat) (h₁ : i < self.nrows) (h₂ : self.WfColumnSize) :
     (self.getRow i h₁ h₂).size = self.ncols := by
   simp [Raw.getRow, Raw.ncols, Row.size]
 
@@ -211,7 +217,7 @@ def ofRows (schema : Schema) (rows : Array Row) (h : ∀ row ∈ rows, row.schem
 def addColumn (self : Raw) (column : Column) : Raw :=
   { columns := self.columns.push column, nrows := self.nrows }
 
-def buildColumn {α} [DataType.OfType α] (self : Raw) (name : String) (f : Row → Option α) (h : ∀ column ∈ self.columns, column.size = self.nrows) : Raw :=
+def buildColumn {α} [DataType.OfType α] (self : Raw) (name : String) (f : Row → Option α) (h : self.WfColumnSize) : Raw :=
   let values := Array.ofFn fun (i : Fin self.nrows) =>
     let row := self.getRow i i.isLt h
     f row
@@ -233,7 +239,7 @@ def transformColumn {α} [DataType.OfType α] (self : Raw) (name : String) (h : 
 /--
 TableAPI: selectRows (overloading 1/2)
 -/
-def selectRows (self : Raw) (ns : Array (Fin self.nrows)) (h : ∀ column ∈ self.columns, column.size = self.nrows) : Raw :=
+def selectRows (self : Raw) (ns : Array (Fin self.nrows)) (h : self.WfColumnSize) : Raw :=
   let rows := ns.map fun i => self.getRow i.val i.isLt h
   have h (row : Row) (mem : row ∈ rows) : row.schema = self.schema := by
     simp only [Array.mem_map, rows] at mem
@@ -244,7 +250,7 @@ def selectRows (self : Raw) (ns : Array (Fin self.nrows)) (h : ∀ column ∈ se
 /--
 TableAPI: selectRows (overloading 2/2)
 -/
-def selectRowsByMask (self : Raw) (mask : Vector Bool self.nrows) (h : ∀ column ∈ self.columns, column.size = self.nrows) : Raw :=
+def selectRowsByMask (self : Raw) (mask : Vector Bool self.nrows) (h : self.WfColumnSize) : Raw :=
   let ns := (Array.range self.nrows).attach.filterMap fun i =>
     have isLt : Subtype.val i < self.nrows := by grind
     if mask[i.val] then
@@ -253,7 +259,7 @@ def selectRowsByMask (self : Raw) (mask : Vector Bool self.nrows) (h : ∀ colum
       none
   self.selectRows ns h
 
-def tfilter (self : Raw) (p : Row → Bool) (h : ∀ column ∈ self.columns, column.size = self.nrows) : Raw :=
+def tfilter (self : Raw) (p : Row → Bool) (h : self.WfColumnSize) : Raw :=
   let rows := (Array.range self.nrows).attach.filterMap fun i =>
     have isLt : Subtype.val i < self.nrows := by grind
     let row := self.getRow i isLt h
@@ -319,7 +325,7 @@ TableAPI: select
 Note: it requires an explicit schema, but the API feels too verbose. Maybe we need a typed Row type.
 -/
 def select (self : Raw) (schema : Schema) (f : Row → (n : Nat) → n < self.nrows → Row)
-    (h₁ : ∀ row n h, (f row n h).schema = schema) (h₂ : ∀ column ∈ self.columns, column.size = self.nrows) : Raw :=
+    (h₁ : ∀ row n h, (f row n h).schema = schema) (h₂ : self.WfColumnSize) : Raw :=
   let rows : Array { row : Row // row.schema = schema } := Array.ofFn fun (i : Fin self.nrows) =>
     let row := self.getRow i.val i.isLt h₂
     ⟨f row i.val i.isLt, h₁ row i.val i.isLt⟩
@@ -331,7 +337,7 @@ def completeCases (self : Raw) (column : String) (h : self.hasColumn column) : A
     | some _ => true
     | none => false
 
-def dropna (self : Raw) (h : ∀ column ∈ self.columns, column.size = self.nrows) : Raw :=
+def dropna (self : Raw) (h : self.WfColumnSize) : Raw :=
   self.tfilter (fun row => row.cells.all (·.value.isSome)) h
 
 def fillna (self : Raw) (column : String) (h₁ : self.hasColumn column) (replacement : (self.getColumnByName column h₁).dataType.toType) : Raw :=

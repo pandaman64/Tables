@@ -11,7 +11,7 @@ public section
 
 namespace Tables.Table.Raw
 
-def distinct (self : Raw) (h : ∀ column ∈ self.columns, column.size = self.nrows) : Raw :=
+def distinct (self : Raw) (h : self.WfColumnSize) : Raw :=
   let schema := self.schema
 
   -- TODO: Rewrite other loops using similar Nat.fold pattern.
@@ -27,7 +27,7 @@ def distinct (self : Raw) (h : ∀ column ∈ self.columns, column.size = self.n
   ofRows schema rows.unattach (by grind [Array.mem_unattach])
 
 def crossJoin (self other : Raw)
-    (h₁ : ∀ column ∈ self.columns, column.size = self.nrows) (h₂ : ∀ column ∈ other.columns, column.size = other.nrows) : Raw :=
+    (h₁ : self.WfColumnSize) (h₂ : other.WfColumnSize) : Raw :=
   let schema := self.schema ++ other.schema
   let rows := Array.flatten <| Array.ofFn fun (i : Fin self.nrows) =>
     Array.ofFn fun (j : Fin other.nrows) =>
@@ -43,7 +43,7 @@ def crossJoin (self other : Raw)
   ofRows schema rows h
 
 def leftJoin (self other : Raw) (keys : Array String)
-    (h₁ : ∀ column ∈ self.columns, column.size = self.nrows) (h₂ : ∀ column ∈ other.columns, column.size = other.nrows) : Raw :=
+    (h₁ : self.WfColumnSize) (h₂ : other.WfColumnSize) : Raw :=
   let schema := self.schema ++ other.schema.selectNotByNames keys
 
   let otherRowsMap : HashMap Row (Array (Fin other.nrows)) := Nat.fold (init := ∅) other.nrows fun i isLt m =>
