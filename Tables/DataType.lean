@@ -11,7 +11,7 @@ inductive DataType where
   | nat
   | string
   | array (dt : DataType)
-deriving Repr, DecidableEq, Hashable
+deriving Repr, DecidableEq, Hashable, Ord
 
 namespace DataType
 
@@ -86,6 +86,16 @@ def hash (dt : DataType) (x : dt.toType) : UInt64 :=
 
 instance {dt : DataType} : Hashable dt.toType where
   hash := hash dt
+
+def compare (dt : DataType) (x y : dt.toType) : Ordering :=
+  match dt with
+  | bool => Ord.compare x y
+  | nat => Ord.compare x y
+  | string => Ord.compare x y
+  | array dt => Array.compareLex (compare dt) x y
+
+instance {dt : DataType} : Ord dt.toType where
+  compare := compare dt
 
 class OfType (α : Type) where
   dataType (α) : DataType

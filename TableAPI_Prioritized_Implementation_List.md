@@ -69,9 +69,6 @@ Priority is ordered from foundational operations to advanced transformations.
 - `tsort :: t1:Table * c:ColName * b:Boolean -> t2:Table`
 - `sortByColumns :: t1:Table * cs:Seq<ColName> -> t2:Table`
 - `count :: t1:Table * c:ColName -> t2:Table`
-- `bin :: t1:Table * c:ColName * n:Number -> t2:Table`
-- `groupBy<K,V> :: t1:Table * key:(r1:Row -> k1:K) * project:(r2:Row -> v:V) * aggregate:(k2:K * vs:Seq<V> -> r3:Row) -> t2:Table`
-- `pivotTable :: t1:Table * cs:Seq<ColName> * aggs:Seq<ColName * ColName * Function> -> t2:Table`
 
 ## Phase 7 - Advanced Reshaping + Generalized Joins
 
@@ -86,10 +83,14 @@ Priority is ordered from foundational operations to advanced transformations.
 - `groupJoin<K> :: t1:Table * t2:Table * getKey1:(r1:Row -> k1:K) * getKey2:(r2:Row -> k2:K) * aggregate:(r3:Row * t3:Table -> r4:Row) -> t4:Table`
 - `join<K> :: t1:Table * t2:Table * getKey1:(r1:Row -> k1:K) * getKey2:(r2:Row -> k2:K) * combine:(r3:Row * r4:Row -> r5:Row) -> t3:Table`
 
-## Phase 9 - Think later
+## Phase 8 - Think later
 
 - `update :: t1:Table * f:(r1:Row -> r2:Row) -> t2:Table`
   - Maybe a column-based operation is more useful. Let's see what Pandas provides
+- `bin :: t1:Table * c:ColName * n:Number -> t2:Table`
+- `pivotTable :: t1:Table * cs:Seq<ColName> * aggs:Seq<ColName * ColName * Function> -> t2:Table`
+- `groupBy<K,V> :: t1:Table * key:(r1:Row -> k1:K) * project:(r2:Row -> v:V) * aggregate:(k2:K * vs:Seq<V> -> r3:Row) -> t2:Table`
+  - Similarly to `update`, we need to ensure that each produced Row has the same shape.
 
 ## Complete Coverage Check
 

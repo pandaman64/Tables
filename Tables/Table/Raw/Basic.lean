@@ -5,8 +5,10 @@ We specify the corresponding TableAPI definitions when we use a different name.
 
 public import Tables.Column
 public import Tables.Row
+import Std.Data.HashMap
 
-@[expose]
+open Std (HashMap)
+
 public section
 
 namespace Tables.Table
@@ -187,7 +189,7 @@ def addRows (self : Raw) (rows : Array Row) (h : ∀ row ∈ rows, row.schema = 
   let nrows := self.nrows + rows.size
   let columns := Array.ofFn fun (i : Fin self.ncols) =>
     let column := self.getColumn i
-    let newValues := Array.ofFn fun (j : Fin rows.size) =>
+    let newValues : Array (Option column.dataType.toType) := Array.ofFn fun (j : Fin rows.size) =>
       let row := rows[j]
       have h : row.schema = self.schema := h row (by grind)
       have isLt : i < row.size := by simp [←row.schema_size_eq_size, h, schema_size_eq]
@@ -336,6 +338,19 @@ def fillna (self : Raw) (column : String) (h₁ : self.hasColumn column) (replac
   let column := self.getColumnByName column h₁
   let newColumn := column.fillna replacement
   self.replaceColumn newColumn
+
+def count (self : Raw) (column : String) (h : self.hasColumn column) : Raw :=
+  let column := self.getColumnByName column h
+  let countMap : HashMap (Option column.dataType.toType) Nat := column.values.foldl (init := ∅) fun map value =>
+    map.alter value fun
+      | some count => some (count + 1)
+      | none => some 1
+  let (values, counts) := countMap.fold (init := (#[], #[])) fun (values, counts) value count =>
+    (values.push value, counts.push count)
+  Raw.ofColumns #[
+    { name := "value", dataType := column.dataType, values := values },
+    { name := "count", dataType := DataType.nat, values := counts.map some },
+  ] values.size
 
 def toString (self : Raw) : String := Id.run do
   let columns := self.columns.map fun column =>
