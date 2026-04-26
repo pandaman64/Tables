@@ -77,6 +77,11 @@ theorem getRow_schema {self : Raw} (i : Nat) (h₁ : i < self.nrows) (h₂ : ∀
     (self.getRow i h₁ h₂).schema = self.schema := by
   simp [Raw.getRow, Raw.schema, Row.schema]
 
+@[simp, grind =]
+theorem getRow_size {self : Raw} (i : Nat) (h₁ : i < self.nrows) (h₂ : ∀ column ∈ self.columns, column.size = self.nrows) :
+    (self.getRow i h₁ h₂).size = self.ncols := by
+  simp [Raw.getRow, Raw.ncols, Row.size]
+
 def getColumn (self : Raw) (i : Nat) (h : i < self.ncols := by get_elem_tactic) : Column :=
   self.columns[i]
 
@@ -96,6 +101,23 @@ theorem schema_getDataType_eq_getColumn_dataType {self : Raw} (i : Nat) (h : i <
 def hasColumn (self : Raw) (name : String) : Bool :=
   self.columns.any (·.name = name)
 
+def findColumnIdx? (self : Raw) (name : String) : Option Nat :=
+  self.columns.findIdx? (·.name = name)
+
+def findColumnIdx (self : Raw) (name : String) (h : self.hasColumn name) : Nat :=
+  have isSome : (self.findColumnIdx? name).isSome := by
+    rw [findColumnIdx?, Array.findIdx?_isSome]
+    exact h
+  (self.findColumnIdx? name).get isSome
+
+theorem findColumnIdx_lt {self : Raw} (name : String) (h : self.hasColumn name) :
+    self.findColumnIdx name h < self.ncols := by
+  show self.findColumnIdx name h < self.columns.size
+  simp only [findColumnIdx, findColumnIdx?]
+  match h' : self.columns.findIdx? (·.name = name) with
+  | some i => simpa [h'] using (Array.findIdx?_eq_some_iff_findIdx_eq.mp h').1
+  | none => grind
+
 /--
 TableAPI: getColumn (overloading 2/2)
 -/
@@ -109,6 +131,32 @@ def getColumnByName (self : Raw) (name : String) (h : self.hasColumn name) : Col
   have isSome : (self.columns.find? (·.name = name)).isSome := by
     grind [hasColumn]
   (self.getColumnByName? name).get isSome
+
+/--
+TableAPI: selectColumns (overloading 2/3)
+-/
+def selectColumns (self : Raw) (ns : Array (Fin self.ncols)) : Raw :=
+  let columns := ns.map fun i => self.getColumn i.val i.isLt
+  { columns, nrows := self.nrows }
+
+/--
+TableAPI: selectColumns (overloading 1/3)
+-/
+def selectColumnsByMask (self : Raw) (mask : Vector Bool self.ncols) : Raw :=
+  let columns := (Array.range self.ncols).attach.filterMap fun i =>
+    have isLt : Subtype.val i < self.ncols := by grind
+    if mask[i.val] then
+      some (self.getColumn i.val isLt)
+    else
+      none
+  { columns, nrows := self.nrows }
+
+/--
+TableAPI: selectColumns (overloading 3/3)
+-/
+def selectColumnsByName (self : Raw) (names : Array String) (h : ∀ name ∈ names, self.hasColumn name) : Raw :=
+  let columns := names.attach.map fun name => self.getColumnByName name.val (h name.val name.property)
+  { columns, nrows := self.nrows }
 
 /--
 TableAPI: head
@@ -191,32 +239,6 @@ def selectRowsByMask (self : Raw) (mask : Vector Bool self.nrows) (h : ∀ colum
     else
       none
   self.selectRows ns h
-
-/--
-TableAPI: selectColumns (overloading 2/3)
--/
-def selectColumns (self : Raw) (ns : Array (Fin self.ncols)) : Raw :=
-  let columns := ns.map fun i => self.getColumn i.val i.isLt
-  { columns, nrows := self.nrows }
-
-/--
-TableAPI: selectColumns (overloading 1/3)
--/
-def selectColumnsByMask (self : Raw) (mask : Vector Bool self.ncols) : Raw :=
-  let columns := (Array.range self.ncols).attach.filterMap fun i =>
-    have isLt : Subtype.val i < self.ncols := by grind
-    if mask[i.val] then
-      some (self.getColumn i.val isLt)
-    else
-      none
-  { columns, nrows := self.nrows }
-
-/--
-TableAPI: selectColumns (overloading 3/3)
--/
-def selectColumnsByName (self : Raw) (names : Array String) (h : ∀ name ∈ names, self.hasColumn name) : Raw :=
-  let columns := names.attach.map fun name => self.getColumnByName name.val (h name.val name.property)
-  { columns, nrows := self.nrows }
 
 def tfilter (self : Raw) (p : Row → Bool) (h : ∀ column ∈ self.columns, column.size = self.nrows) : Raw :=
   let rows := (Array.range self.nrows).attach.filterMap fun i =>

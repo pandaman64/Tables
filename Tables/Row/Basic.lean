@@ -64,6 +64,18 @@ def getCellByName (self : Row) (name : String) (h : self.hasCell name) : Cell :=
     grind [hasCell]
   (self.getCellByName? name).get isSome
 
+def concat (self other : Row) : Row :=
+  { cells := self.cells ++ other.cells }
+
+instance : Append Row where
+  append := concat
+
+def selectByNames (self : Row) (names : Array String) : Row :=
+  { cells := self.cells.filter fun cell => cell.name ∈ names }
+
+def selectNotByNames (self : Row) (names : Array String) : Row :=
+  { cells := self.cells.filter fun cell => cell.name ∉ names }
+
 end Row
 
 end Tables
