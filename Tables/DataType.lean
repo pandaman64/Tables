@@ -4,19 +4,13 @@ import Std.Data.HashMap
 
 public section
 
-namespace String
-
-def joinSep (sep : String) (xs : Array String) : String :=
-  xs.foldl (fun acc x => if acc.isEmpty then x else acc ++ sep ++ x) ""
-
-end String
-
 namespace Tables
 
 inductive DataType where
   | bool
   | nat
   | string
+  -- TODO: Instead of nesting an option type, we should handle the nullness at the column level, like Arrow.
   | option (dt : DataType)
   | array (dt : DataType)
 deriving Repr, DecidableEq, Hashable
@@ -41,7 +35,7 @@ def toString (dt : DataType) (x : dt.toType) : String :=
     match x with
     | some x => s!"some {toString dt x}"
     | none => "none"
-  | array dt => s!"#[{x.map (toString dt) |> String.joinSep ", "}]"
+  | array dt => s!"#[{x.map (toString dt) |>.toList |> ", ".intercalate}]"
 
 instance {dt : DataType} : ToString dt.toType where
   toString := toString dt

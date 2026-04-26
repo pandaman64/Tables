@@ -47,7 +47,7 @@ deriving DecidableEq, Hashable
 namespace Column
 
 def toString (self : Column) : String :=
-  s!"{self.name}: #[{self.values.map (DataType.toString self.dataType) |> String.joinSep ", "}]"
+  s!"{self.name}: #[{self.values.map (DataType.toString self.dataType) |>.toList |> ", ".intercalate}]"
 
 def size (self : Column) : Nat :=
   self.values.size
