@@ -43,6 +43,9 @@ def toString (dt : DataType) (x : dt.toType) : String :=
     | none => "none"
   | array dt => s!"#[{x.map (toString dt) |> String.joinSep ", "}]"
 
+instance {dt : DataType} : ToString dt.toType where
+  toString := toString dt
+
 def beq (dt : DataType) (x y : dt.toType) : Bool :=
   match dt with
   | bool => x == y
@@ -113,6 +116,30 @@ def hash (dt : DataType) (x : dt.toType) : UInt64 :=
 
 instance {dt : DataType} : Hashable dt.toType where
   hash := hash dt
+
+class OfType (α : Type) where
+  dataType (α) : DataType
+  eq (α) : α = dataType.toType
+
+instance : OfType Bool where
+  dataType := DataType.bool
+  eq := rfl
+
+instance : OfType Nat where
+  dataType := DataType.nat
+  eq := rfl
+
+instance : OfType String where
+  dataType := DataType.string
+  eq := rfl
+
+instance {α} [OfType α] : OfType (Option α) where
+  dataType := DataType.option (OfType.dataType α)
+  eq := by simp [OfType.eq α]
+
+instance {α} [OfType α] : OfType (Array α) where
+  dataType := DataType.array (OfType.dataType α)
+  eq := by simp [OfType.eq α]
 
 end DataType
 

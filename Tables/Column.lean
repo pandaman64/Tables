@@ -77,6 +77,13 @@ def take (self : Column) (n : Nat) : Column :=
     values := self.values.take n,
   }
 
+def ofValues {α} [DataType.OfType α] (name : String) (values : Array α) : Column :=
+  {
+    name := name,
+    dataType := DataType.OfType.dataType α,
+    values := DataType.OfType.eq α ▸ values,
+  }
+
 end Column
 
 end Tables

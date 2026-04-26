@@ -58,6 +58,9 @@ def empty (schema : Schema) : Raw :=
 theorem empty_schema {schema : Schema} : (empty schema).schema = schema := by
   simp [Raw.schema, Raw.empty, Array.map_map, Function.comp_def]
 
+def ofColumns (columns : Array Column) (nrows : Nat) : Raw :=
+  { columns, nrows }
+
 def getRow (self : Raw) (i : Nat) (h₁ : i < self.nrows) (h₂ : ∀ column ∈ self.columns, column.size = self.nrows) : Row :=
   let cells := self.columns.attach.map fun column =>
     {
@@ -287,6 +290,37 @@ def vcat (self : Raw) (other : Raw) (h : self.schema = other.schema) : Raw :=
 
 def hcat (self : Raw) (other : Raw) : Raw :=
   { columns := self.columns ++ other.columns, nrows := self.nrows }
+
+def toString (self : Raw) : String := Id.run do
+  let columns := self.columns.map fun column =>
+    #[column.name] ++ column.values.map (DataType.toString column.dataType)
+  let widths := columns.map fun strs => strs.map (·.length) |>.max? |>.getD 0
+
+  let mut result := printRow columns widths 0 ++ "\n" ++ printSeparatorRow widths ++ "\n"
+
+  for i in [1:self.nrows + 1] do
+    result := result ++ printRow columns widths i ++ "\n"
+  result
+where
+  printRow (columns : Array (Array String)) (widths : Array Nat) (i : Nat) : String := Id.run do
+    let mut line := "|"
+    for j in [0:columns.size] do
+      let value := columns[j]![i]!
+      let width := widths[j]!
+      line := line ++ rightPad value " " width ++ "|"
+    line
+  printSeparatorRow (widths : Array Nat) : String := Id.run do
+    let mut line := "|"
+    for j in [0:widths.size] do
+      let width := widths[j]!
+      line := line ++ repeatStr "-" width ++ "|"
+    line
+  repeatStr (str : String) (n : Nat) : String :=
+    String.join (List.replicate n str)
+  rightPad (str : String) (pad : String) (n : Nat) : String :=
+    str ++ repeatStr pad (n - str.length)
+
+def toFormat (self : Raw) : Std.Format := self.toString.toFormat
 
 end Raw
 
