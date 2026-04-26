@@ -323,6 +323,20 @@ def select (self : Raw) (schema : Schema) (f : Row → (n : Nat) → n < self.nr
     ⟨f row i.val i.isLt, h₁ row i.val i.isLt⟩
   ofRows schema rows.unattach (by grind [Array.mem_unattach])
 
+def completeCases (self : Raw) (column : String) (h : self.hasColumn column) : Array Bool :=
+  let column := self.getColumnByName column h
+  column.values.map fun
+    | some _ => true
+    | none => false
+
+def dropna (self : Raw) (h : ∀ column ∈ self.columns, column.size = self.nrows) : Raw :=
+  self.tfilter (fun row => row.cells.all (·.value.isSome)) h
+
+def fillna (self : Raw) (column : String) (h₁ : self.hasColumn column) (replacement : (self.getColumnByName column h₁).dataType.toType) : Raw :=
+  let column := self.getColumnByName column h₁
+  let newColumn := column.fillna replacement
+  self.replaceColumn newColumn
+
 def toString (self : Raw) : String := Id.run do
   let columns := self.columns.map fun column =>
     #[column.name] ++ column.values.map fun

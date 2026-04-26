@@ -113,6 +113,15 @@ def mapValues {α} [DataType.OfType α] (self : Column) (f : Option self.dataTyp
     values := DataType.OfType.eq α ▸ self.values.map f,
   }
 
+def fillna (self : Column) (replacement : self.dataType.toType) : Column :=
+  {
+    name := self.name,
+    dataType := self.dataType,
+    values := self.values.map fun
+      | some value => some value
+      | none => some replacement,
+  }
+
 end Column
 
 end Tables
