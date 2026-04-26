@@ -11,7 +11,7 @@ namespace Tables
 structure Cell where
   name : String
   dataType : DataType
-  value : dataType.toType
+  value : Option dataType.toType
 deriving DecidableEq, Hashable
 
 structure Row where
@@ -38,7 +38,7 @@ def getName (self : Row) (i : Nat) (h : i < self.size := by get_elem_tactic) : S
 def getDataType (self : Row) (i : Nat) (h : i < self.size := by get_elem_tactic) : DataType :=
   self.cells[i].dataType
 
-def getValue (self : Row) (i : Nat) (h : i < self.size := by get_elem_tactic) : (self.getDataType i h).toType :=
+def getValue (self : Row) (i : Nat) (h : i < self.size := by get_elem_tactic) : Option (self.getDataType i h).toType :=
   self.cells[i].value
 
 def getCell (self : Row) (i : Nat) (h : i < self.size := by get_elem_tactic) : Cell :=

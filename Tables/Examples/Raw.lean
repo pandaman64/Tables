@@ -7,30 +7,31 @@ open Tables.Table (Raw)
 
 namespace Tables.Examples
 
+-- Unfortunately, we cannot reduce Array.map in Column.ofValues...
 def students : Raw :=
   Raw.ofColumns #[
-    Column.ofValues "name" #["Bob", "Alice", "Eve"],
-    Column.ofValues "age" #[12, 17, 13],
-    Column.ofValues "favorite color" #["blue", "green", "red"],
+    Column.ofRawValues "name" #[some "Bob", some "Alice", some "Eve"],
+    Column.ofRawValues "age" #[some 12, some 17, some 13],
+    Column.ofRawValues "favorite color" #[some "blue", some "green", some "red"],
   ] 3
 
 #eval students.toFormat
 
 def studentsMissing : Raw :=
   Raw.ofColumns #[
-    Column.ofValues "name" #["Bob", "Alice", "Eve"],
-    Column.ofValues "age" #[none, some 17, some 13],
-    Column.ofValues "favorite color" #[some "blue", some "green", none],
+    Column.ofRawValues "name" #[some "Bob", some "Alice", some "Eve"],
+    Column.ofRawValues "age" #[none, some 17, some 13],
+    Column.ofRawValues "favorite color" #[some "blue", some "green", none],
   ] 3
 
 #eval studentsMissing.toFormat
 
 def employees : Raw :=
   Raw.ofColumns #[
-    Column.ofValues "Last Name" #[
-      "Rafferty", "Jones", "Heisenberg", "Robinson", "Smith", "Williams"
+    Column.ofRawValues "Last Name" #[
+      some "Rafferty", some "Jones", some "Heisenberg", some "Robinson", some "Smith", some "Williams"
     ],
-    Column.ofValues "Department ID" #[
+    Column.ofRawValues "Department ID" #[
       some 31, some 33, some 33, some 34, some 34, none
     ],
   ] 6
@@ -39,88 +40,88 @@ def employees : Raw :=
 
 def departments : Raw :=
   Raw.ofColumns #[
-    Column.ofValues "Department ID" #[31, 33, 34, 35],
-    Column.ofValues "Department Name" #["Sales", "Engineering", "Clerical", "Marketing"],
+    Column.ofRawValues "Department ID" #[some 31, some 33, some 34, some 35],
+    Column.ofRawValues "Department Name" #[some "Sales", some "Engineering", some "Clerical", some "Marketing"],
   ] 4
 
 #eval departments.toFormat
 
 def jellyAnon : Raw :=
   Raw.ofColumns #[
-    Column.ofValues "get acne" #[true, true, false, false, false, true, false, true, true, false],
-    Column.ofValues "red"      #[false, false, false, false, false, false, false, false, false, true],
-    Column.ofValues "black"    #[false, true,  false, false, false, true,  true,  false, false, false],
-    Column.ofValues "white"    #[false, false, false, false, false, false, false, false, false, false],
-    Column.ofValues "green"    #[true,  true,  true,  false, false, false, false, false, false, false],
-    Column.ofValues "yellow"   #[false, true,  false, true,  true,  false, false, false, false, true],
-    Column.ofValues "brown"    #[false, false, false, false, false, false, false, true,  false, true],
-    Column.ofValues "orange"   #[true,  false, false, false, false, true,  false, true,  true,  false],
-    Column.ofValues "pink"     #[false, false, true,  false, true,  true,  true,  false, false, true],
-    Column.ofValues "purple"   #[false, false, false, false, false, false, false, false, false, false],
+    Column.ofRawValues "get acne" #[some true, some true, some false, some false, some false, some true, some false, some true, some true, some false],
+    Column.ofRawValues "red"      #[some false, some false, some false, some false, some false, some false, some false, some false, some false, some true],
+    Column.ofRawValues "black"    #[some false, some true,  some false, some false, some false, some true,  some true,  some false, some false, some false],
+    Column.ofRawValues "white"    #[some false, some false, some false, some false, some false, some false, some false, some false, some false, some false],
+    Column.ofRawValues "green"    #[some true,  some true,  some true,  some false, some false, some false, some false, some false, some false, some false],
+    Column.ofRawValues "yellow"   #[some false, some true,  some false, some true,  some true,  some false, some false, some false, some false, some true],
+    Column.ofRawValues "brown"    #[some false, some false, some false, some false, some false, some false, some false, some true,  some false, some true],
+    Column.ofRawValues "orange"   #[some true,  some false, some false, some false, some false, some true,  some false, some true,  some true,  some false],
+    Column.ofRawValues "pink"     #[some false, some false, some true,  some false, some true,  some true,  some true,  some false, some false, some true],
+    Column.ofRawValues "purple"   #[some false, some false, some false, some false, some false, some false, some false, some false, some false, some false],
   ] 10
 
 #eval jellyAnon.toFormat
 
 def jellyNamed : Raw :=
   Raw.ofColumns #[
-    Column.ofValues "name" #[
-      "Emily", "Jacob", "Emma", "Aidan", "Madison", "Ethan", "Hannah", "Matthew", "Hailey", "Nicholas"
+    Column.ofRawValues "name" #[
+      some "Emily", some "Jacob", some "Emma", some "Aidan", some "Madison", some "Ethan", some "Hannah", some "Matthew", some "Hailey", some "Nicholas"
     ],
-    Column.ofValues "get acne" #[true, true, false, false, false, true, false, true, true, false],
-    Column.ofValues "red"      #[false, false, false, false, false, false, false, false, false, true],
-    Column.ofValues "black"    #[false, true,  false, false, false, true,  true,  false, false, false],
-    Column.ofValues "white"    #[false, false, false, false, false, false, false, false, false, false],
-    Column.ofValues "green"    #[true,  true,  true,  false, false, false, false, false, false, false],
-    Column.ofValues "yellow"   #[false, true,  false, true,  true,  false, false, false, false, true],
-    Column.ofValues "brown"    #[false, false, false, false, false, false, false, true,  false, true],
-    Column.ofValues "orange"   #[true,  false, false, false, false, true,  false, true,  true,  false],
-    Column.ofValues "pink"     #[false, false, true,  false, true,  true,  true,  false, false, true],
-    Column.ofValues "purple"   #[false, false, false, false, false, false, false, false, false, false],
+    Column.ofRawValues "get acne" #[some true, some true, some false, some false, some false, some true, some false, some true, some true, some false],
+    Column.ofRawValues "red"      #[some false, some false, some false, some false, some false, some false, some false, some false, some false, some true],
+    Column.ofRawValues "black"    #[some false, some true,  some false, some false, some false, some true,  some true,  some false, some false, some false],
+    Column.ofRawValues "white"    #[some false, some false, some false, some false, some false, some false, some false, some false, some false, some false],
+    Column.ofRawValues "green"    #[some true,  some true,  some true,  some false, some false, some false, some false, some false, some false, some false],
+    Column.ofRawValues "yellow"   #[some false, some true,  some false, some true,  some true,  some false, some false, some false, some false, some true],
+    Column.ofRawValues "brown"    #[some false, some false, some false, some false, some false, some false, some false, some true,  some false, some true],
+    Column.ofRawValues "orange"   #[some true,  some false, some false, some false, some false, some true,  some false, some true,  some true,  some false],
+    Column.ofRawValues "pink"     #[some false, some false, some true,  some false, some true,  some true,  some true,  some false, some false, some true],
+    Column.ofRawValues "purple"   #[some false, some false, some false, some false, some false, some false, some false, some false, some false, some false],
   ] 10
 
 #eval jellyNamed.toFormat
 
 def gradebook : Raw :=
   Raw.ofColumns #[
-    Column.ofValues "name" #["Bob", "Alice", "Eve"],
-    Column.ofValues "age" #[12, 17, 13],
-    Column.ofValues "quiz1" #[8, 6, 7],
-    Column.ofValues "quiz2" #[9, 8, 9],
-    Column.ofValues "midterm" #[77, 88, 84],
-    Column.ofValues "quiz3" #[7, 8, 8],
-    Column.ofValues "quiz4" #[9, 7, 8],
-    Column.ofValues "final" #[87, 85, 77],
+    Column.ofRawValues "name" #[some "Bob", some "Alice", some "Eve"],
+    Column.ofRawValues "age" #[some 12, some 17, some 13],
+    Column.ofRawValues "quiz1" #[some 8, some 6, some 7],
+    Column.ofRawValues "quiz2" #[some 9, some 8, some 9],
+    Column.ofRawValues "midterm" #[some 77, some 88, some 84],
+    Column.ofRawValues "quiz3" #[some 7, some 8, some 8],
+    Column.ofRawValues "quiz4" #[some 9, some 7, some 8],
+    Column.ofRawValues "final" #[some 87, some 85, some 77],
   ] 3
 
 #eval gradebook.toFormat
 
 def gradebookMissing : Raw :=
   Raw.ofColumns #[
-    Column.ofValues "name" #["Bob", "Alice", "Eve"],
-    Column.ofValues "age" #[12, 17, 13],
-    Column.ofValues "quiz1" #[some 8, some 6, none],
-    Column.ofValues "quiz2" #[some 9, some 8, some 9],
-    Column.ofValues "midterm" #[some 77, some 88, some 84],
-    Column.ofValues "quiz3" #[some 7, none, some 8],
-    Column.ofValues "quiz4" #[some 9, some 7, some 8],
-    Column.ofValues "final" #[some 87, some 85, some 77],
+    Column.ofRawValues "name" #[some "Bob", some "Alice", some "Eve"],
+    Column.ofRawValues "age" #[some 12, some 17, some 13],
+    Column.ofRawValues "quiz1" #[some 8, some 6, none],
+    Column.ofRawValues "quiz2" #[some 9, some 8, some 9],
+    Column.ofRawValues "midterm" #[some 77, some 88, some 84],
+    Column.ofRawValues "quiz3" #[some 7, none, some 8],
+    Column.ofRawValues "quiz4" #[some 9, some 7, some 8],
+    Column.ofRawValues "final" #[some 87, some 85, some 77],
   ] 3
 
 #eval gradebookMissing.toFormat
 
 def gradebookSeq : Raw :=
   Raw.ofColumns #[
-    Column.ofValues "name" #["Bob", "Alice", "Eve"],
-    Column.ofValues "age" #[12, 17, 13],
-    Column.ofValues "quizzes" #[#[8, 9, 7, 9], #[6, 8, 8, 7], #[7, 9, 8, 8]],
-    Column.ofValues "midterm" #[77, 88, 84],
-    Column.ofValues "final" #[87, 85, 77],
+    Column.ofRawValues "name" #[some "Bob", some "Alice", some "Eve"],
+    Column.ofRawValues "age" #[some 12, some 17, some 13],
+    Column.ofRawValues "quizzes" #[some #[8, 9, 7, 9], some #[6, 8, 8, 7], some #[7, 9, 8, 8]],
+    Column.ofRawValues "midterm" #[some 77, some 88, some 84],
+    Column.ofRawValues "final" #[some 87, some 85, some 77],
   ] 3
 
 #eval gradebookSeq.toFormat
 
 def studentsGrades := students.leftJoin gradebook #["name", "age"] (by decide) (by decide)
 
-#eval studentsGrades.toFormat
+#eval! studentsGrades.toFormat
 
 end Tables.Examples

@@ -209,11 +209,11 @@ def ofRows (schema : Schema) (rows : Array Row) (h : ∀ row ∈ rows, row.schem
 def addColumn (self : Raw) (column : Column) : Raw :=
   { columns := self.columns.push column, nrows := self.nrows }
 
-def buildColumn {α} [DataType.OfType α] (self : Raw) (name : String) (f : Row → α) (h : ∀ column ∈ self.columns, column.size = self.nrows) : Raw :=
+def buildColumn {α} [DataType.OfType α] (self : Raw) (name : String) (f : Row → Option α) (h : ∀ column ∈ self.columns, column.size = self.nrows) : Raw :=
   let values := Array.ofFn fun (i : Fin self.nrows) =>
     let row := self.getRow i i.isLt h
     f row
-  self.addColumn (Column.ofValues name values)
+  self.addColumn (Column.ofRawValues name values)
 
 def replaceColumn (self : Raw) (column : Column) : Raw :=
   let columns := self.columns.map fun col =>
@@ -224,7 +224,7 @@ def replaceColumn (self : Raw) (column : Column) : Raw :=
   { columns, nrows := self.nrows }
 
 def transformColumn {α} [DataType.OfType α] (self : Raw) (name : String) (h : self.hasColumn name)
-    (f : (self.getColumnByName name h).dataType.toType → α) : Raw :=
+    (f : Option ((self.getColumnByName name h).dataType.toType) → Option α) : Raw :=
   let newColumn := (self.getColumnByName name h).mapValues f
   self.replaceColumn newColumn
 
@@ -325,7 +325,9 @@ def select (self : Raw) (schema : Schema) (f : Row → (n : Nat) → n < self.nr
 
 def toString (self : Raw) : String := Id.run do
   let columns := self.columns.map fun column =>
-    #[column.name] ++ column.values.map (DataType.toString column.dataType)
+    #[column.name] ++ column.values.map fun
+      | some value => DataType.toString column.dataType value
+      | none => "null"
   let widths := columns.map fun strs => strs.map (·.length) |>.max? |>.getD 0
 
   let mut result := printRow columns widths 0 ++ "\n" ++ printSeparatorRow widths ++ "\n"
