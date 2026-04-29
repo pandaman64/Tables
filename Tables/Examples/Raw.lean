@@ -1,9 +1,11 @@
 module
 
-import Tables.Table.Raw.Basic
-import Tables.Table.Raw.Join
+meta import Tables.Table.Raw.Basic
+meta import Tables.Table.Raw.Join
 
 open Tables.Table (Raw)
+
+meta section
 
 namespace Tables.Examples
 
@@ -125,3 +127,5 @@ def studentsGrades := students.leftJoin gradebook #["name", "age"] sorry sorry
 #eval! studentsGrades.toFormat
 
 end Tables.Examples
+
+end

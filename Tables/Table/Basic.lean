@@ -199,14 +199,18 @@ def ofRows (schema : Schema) (rows : Array Row) (h : ∀ row ∈ rows, row.schem
     wfColumnNames := wfColumnNames_ofRows schema rows h hwf
   }
 
-def ofRows? (schema : Schema) (rows : Array Row) : Except Error Table :=
-  let i := rows.findIdx (fun row => row.schema ≠ schema)
-  if hi : i < rows.size then
-    .error (.mismatchedSchema schema rows[i].schema)
-  else if hwf : schema.Wf then
-    .ok (ofRows schema rows (by grind) hwf)
+def ofRows? (rows : Array Row) : Except Error Table :=
+  if hsize : rows.size > 0 then
+    let schema := rows[0].schema
+    let i := rows.findIdx (fun row => row.schema ≠ schema)
+    if hi : i < rows.size then
+      .error (.mismatchedSchema schema rows[i].schema)
+    else if hwf : schema.Wf then
+      .ok (ofRows schema rows (by grind) hwf)
+    else
+      .error .schemaNotWellFormed
   else
-    .error .schemaNotWellFormed
+    .ok default
 
 def addColumn (self : Table) (column : Column)
     (hsize : column.size = self.nrows)
@@ -219,8 +223,7 @@ def addColumn (self : Table) (column : Column)
 
 def addColumn? (self : Table) (column : Column) : Except Error Table :=
   if hsize : column.size = self.nrows then
-    if hfresh :
-        ∀ (i : Fin self.ncols), (self.getColumn i.val i.isLt).name ≠ column.name then
+    if hfresh : ∀ (i : Fin self.ncols), (self.getColumn i.val i.isLt).name ≠ column.name then
       .ok (self.addColumn column hsize hfresh)
     else
       .error (.duplicateColumnName column.name)
@@ -378,13 +381,31 @@ def select (self : Table) (schema : Schema) (f : Row → (n : Nat) → n < self.
     wfColumnNames := wfColumnNames_select self.raw schema f h₁ self.wfColumnSize hwf_schema
   }
 
--- TODO: define a lax one, that dynamically checks the schema of the result
-def select? (self : Table) (schema : Schema) (f : Row → (n : Nat) → n < self.nrows → Row)
-    (h₁ : ∀ row n h, (f row n h).schema = schema) : Except Error Table :=
-  if hwf : schema.Wf then
-    .ok (self.select schema f h₁ hwf)
+def select? (self : Table) (f : Row → (n : Nat) → n < self.nrows → Row) :
+    Except Error Table := do
+  if hsize : 0 < self.nrows then
+    let firstRow := f (self.getRow 0 hsize) 0 hsize
+    if hwf : firstRow.schema.Wf then
+      let table := ofRows firstRow.schema #[firstRow] (by simp) hwf
+      have hschema : table.schema = firstRow.schema := by
+        simp [table, ofRows, schema, Raw.ofRows_schema]
+
+      let result : { table : Table // table.schema = firstRow.schema } ← Nat.foldM (init := ⟨table, hschema⟩) self.nrows
+        fun i isLt table => do
+          if i = 0 then
+            -- Skip the first row, which is already added
+            return table
+          else
+            let row := f (self.getRow i isLt) i isLt
+            if h : row.schema = table.val.schema then
+              return ⟨table.val.addRow row h, by simp [addRow, schema, Raw.addRow_schema, table.property.symm]⟩
+            else
+              throw (.mismatchedSchema table.val.schema row.schema)
+      return result.val
+    else
+      throw .schemaNotWellFormed
   else
-    .error .schemaNotWellFormed
+    .ok default
 
 def completeCases (self : Table) (column : String) (h : self.hasColumn column) : Array Bool :=
   self.raw.completeCases column h
