@@ -33,9 +33,6 @@ namespace Raw
 def WfColumnSize (self : Raw) : Prop :=
   ∀ column ∈ self.columns, column.size = self.nrows
 
-def WfColumnNames (self : Raw) : Prop :=
-  ∀ (i j : Fin self.columns.size), i ≠ j → self.columns[i].name ≠ self.columns[j].name
-
 instance : Inhabited Raw :=
   ⟨{ columns := #[], nrows := 0 }⟩
 
@@ -155,12 +152,7 @@ def selectColumns (self : Raw) (ns : Array (Fin self.ncols)) : Raw :=
 TableAPI: selectColumns (overloading 1/3)
 -/
 def selectColumnsByMask (self : Raw) (mask : Vector Bool self.ncols) : Raw :=
-  let ns := (Array.range self.ncols).attach.filterMap fun i =>
-    have isLt : Subtype.val i < self.ncols := by grind
-    if mask[i.val] then
-      some ⟨i.val, isLt⟩
-    else
-      none
+  let ns := (Array.finRange self.ncols).filter fun i => mask[i.val]
   self.selectColumns ns
 
 /--
@@ -391,6 +383,9 @@ where
     str ++ repeatStr pad (n - str.length)
 
 def toFormat (self : Raw) : Std.Format := self.toString.toFormat
+
+def WfColumnNames (self : Raw) : Prop :=
+  ∀ (i j : Fin self.ncols), i ≠ j → (self.getColumn i).name ≠ (self.getColumn j).name
 
 end Raw
 

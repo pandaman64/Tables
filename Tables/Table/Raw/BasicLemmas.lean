@@ -2,9 +2,9 @@ module
 
 public import Tables.Table.Raw.Basic
 import all Tables.Table.Raw.Basic
-import Init.Data.Array.Lemmas
-import Init.Data.Array.OfFn
+public import Tables.Data.Array.Nodup
 import Std.Data.HashMap.Lemmas
+import Tables.Data.HashMap
 
 open Std (HashMap)
 open Array
@@ -283,15 +283,6 @@ theorem wfColumnSize_fillna
   · exact hsz
   · exact hwf
 
-/--
-Upstreams to `Std.Data.HashMap.Lemmas`: `valuesArray` parallels `keysArray` — same length as `size`.
--/
-private theorem HashMap.size_valuesArray.{u, v}
-    {α : Type u} {β : Type v} {_ : BEq α} {_ : Hashable α}
-    [EquivBEq α] [LawfulHashable α] (m : Std.HashMap α β) :
-    m.valuesArray.size = m.size := by
-  sorry
-
 theorem wfColumnSize_count
     (self : Raw) (column : String) (h : self.hasColumn column) : (count self column h).WfColumnSize := by
   unfold count
@@ -326,12 +317,7 @@ theorem selectColumns_schema (self : Raw) (ns : Array (Fin self.ncols)) :
   simp [Raw.selectColumns, Raw.schema, Schema.ofSpecs, Schema.ext_iff, Column.spec]
 
 theorem selectColumnsByMask_schema (self : Raw) (mask : Vector Bool self.ncols) :
-    let ns := (Array.range self.ncols).attach.filterMap fun i =>
-      have isLt : Subtype.val i < self.ncols := by grind
-      if mask[i.val] then
-        some ⟨i.val, isLt⟩
-      else
-        none
+    letI ns := (Array.finRange self.ncols).filter fun i => mask[i.val]
     (selectColumnsByMask self mask).schema = (selectColumns self ns).schema := by
   rfl
 
@@ -481,6 +467,222 @@ theorem count_schema (self : Raw) (column : String) (h : self.hasColumn column) 
   simp [Raw.schema, Schema.ofSpecs]
 
 end schema
+
+section wfColumnNames
+
+theorem wfColumnNames_iff_schema_wf (self : Raw) : self.WfColumnNames ↔ self.schema.Wf := by
+  apply Iff.intro
+  . intro h i j ne
+    have := h ⟨i, by simpa using i.isLt⟩ ⟨j, by simpa using j.isLt⟩ (by grind)
+    grind only [usr Fin.isLt, = schema_getName_eq_getColumn_name]
+  . intro h i j ne
+    have := h ⟨i, by simp⟩ ⟨j, by simp⟩ (by grind)
+    grind only [= schema_getName_eq_getColumn_name]
+
+theorem wfColumnNames_empty (schema : Schema) (hwf : schema.Wf) : (empty schema).WfColumnNames := by
+  simpa [wfColumnNames_iff_schema_wf, empty_schema] using hwf
+
+theorem wfColumnNames_ofColumns (columns : Array Column) (nrows : Nat)
+    (hwf : ∀ (i j : Fin columns.size), i ≠ j → columns[i].name ≠ columns[j].name) :
+    (ofColumns columns nrows).WfColumnNames := by
+  rw [wfColumnNames_iff_schema_wf, ofColumns_schema]
+  intro i j ne
+  simpa only [Schema.ofSpecs_getName, getElem_map, Column.spec] using
+    hwf ⟨i, by simpa using i.isLt⟩ ⟨j, by simpa using j.isLt⟩ (by grind)
+
+@[simp, grind =]
+theorem selectColumns_ncols (self : Raw) (ns : Array (Fin self.ncols)) :
+    (selectColumns self ns).ncols = ns.size := by
+  simp [Raw.selectColumns, Raw.ncols]
+
+@[simp, grind =]
+theorem selectColumns_getColumn (self : Raw) (ns : Array (Fin self.ncols)) (i : Nat) (h : i < ns.size) :
+    (selectColumns self ns).getColumn i (selectColumns_ncols self ns ▸ h) = self.getColumn ns[i].val ns[i].isLt := by
+  simp [selectColumns, getColumn]
+
+theorem wfColumnNames_selectColumns (self : Raw) (ns : Array (Fin self.ncols))
+    (hwf : self.WfColumnNames)
+    (hinj : ns.Nodup) :
+    (selectColumns self ns).WfColumnNames := by
+  intro i j ne
+  have hi : i < ns.size := by grind
+  have hj : j < ns.size := by grind
+  rw [selectColumns_getColumn self ns i hi, selectColumns_getColumn self ns j hj]
+  exact hwf ns[i] ns[j] (hinj i j hi hj (Fin.val_ne_of_ne ne))
+
+theorem wfColumnNames_selectColumnsByMask (self : Raw) (mask : Vector Bool self.ncols)
+    (hwf : self.WfColumnNames) :
+    (selectColumnsByMask self mask).WfColumnNames := by
+  unfold selectColumnsByMask
+  exact wfColumnNames_selectColumns self _ hwf (Array.Nodup.filter _ (Array.Nodup.finRange _))
+
+@[simp, grind =]
+theorem selectColumnsByName_ncols (self : Raw) (names : Array String) (h : ∀ name ∈ names, self.hasColumn name) :
+    (selectColumnsByName self names h).ncols = names.size := by
+  simp [Raw.selectColumnsByName, Raw.ncols]
+
+@[simp, grind =]
+theorem selectColumnsByName_getColumn_name (self : Raw) (names : Array String) (h : ∀ name ∈ names, self.hasColumn name)
+    (i : Nat) (hi : i < names.size) :
+    ((selectColumnsByName self names h).getColumn i (selectColumnsByName_ncols self names h ▸ hi)).name = names[i] := by
+  simp [selectColumnsByName, getColumn]
+
+theorem wfColumnNames_selectColumnsByName (self : Raw) (names : Array String)
+    (h : ∀ name ∈ names, self.hasColumn name)
+    (hdupfree : names.Nodup) :
+    (selectColumnsByName self names h).WfColumnNames := by
+  intro i j ne
+  have hi : i < names.size := by grind
+  have hj : j < names.size := by grind
+  rw [selectColumnsByName_getColumn_name self names h i.val hi, selectColumnsByName_getColumn_name self names h j.val hj]
+  exact hdupfree i j hi hj (Fin.val_ne_of_ne ne)
+
+theorem wfColumnNames_take (self : Raw) (n : Nat) (hwf : self.WfColumnNames) :
+    (take self n).WfColumnNames := by
+  simpa [wfColumnNames_iff_schema_wf, take_schema] using (wfColumnNames_iff_schema_wf self).mp hwf
+
+theorem wfColumnNames_addRow (self : Raw) (row : Row) (h : row.schema = self.schema)
+    (hwf : self.WfColumnNames) :
+    (addRow self row h).WfColumnNames := by
+  simpa [wfColumnNames_iff_schema_wf, addRow_schema] using (wfColumnNames_iff_schema_wf self).mp hwf
+
+theorem wfColumnNames_addRows (self : Raw) (rows : Array Row) (h : ∀ row ∈ rows, row.schema = self.schema)
+    (hwf : self.WfColumnNames) :
+    (addRows self rows h).WfColumnNames := by
+  simpa [wfColumnNames_iff_schema_wf, addRows_schema] using (wfColumnNames_iff_schema_wf self).mp hwf
+
+theorem wfColumnNames_ofRows (schema : Schema) (rows : Array Row) (h : ∀ row ∈ rows, row.schema = schema)
+    (hwf : schema.Wf) :
+    (ofRows schema rows h).WfColumnNames := by
+  simpa [wfColumnNames_iff_schema_wf, ofRows_schema] using hwf
+
+theorem wfColumnNames_addColumn (self : Raw) (column : Column)
+    (hwf : self.WfColumnNames)
+    (hfresh : ∀ (i : Fin self.ncols), (self.getColumn i.val i.isLt).name ≠ column.name) :
+    (addColumn self column).WfColumnNames := by
+  rw [wfColumnNames_iff_schema_wf (addColumn self column), addColumn_schema]
+  exact Schema.wf_push ((wfColumnNames_iff_schema_wf self).mp hwf) fun i => by
+    have isLt : i.val < self.ncols := by simpa [schema_size_eq] using i.isLt
+    have eqName : self.schema.getName i.val i.isLt = (self.getColumn i.val isLt).name := by
+      rw [schema_getName_eq_getColumn_name]
+    simpa [eqName, Column.spec] using hfresh ⟨i, isLt⟩
+
+theorem wfColumnNames_buildColumn {α} [DataType.OfType α] (self : Raw) (name : String) (f : Row → Option α)
+    (h : self.WfColumnSize)
+    (hwf : self.WfColumnNames)
+    (hfresh : ∀ (i : Fin self.ncols), (self.getColumn i.val i.isLt).name ≠ name) :
+    (buildColumn self name f h).WfColumnNames := by
+  simpa [buildColumn_schema] using wfColumnNames_addColumn self _ hwf hfresh
+
+theorem wfColumnNames_replaceColumn (self : Raw) (column : Column)
+    (hwf : self.WfColumnNames)
+    (_hsize : column.size = self.nrows) :
+    (replaceColumn self column).WfColumnNames := by
+  rw [wfColumnNames_iff_schema_wf (replaceColumn self column)]
+  rw [replaceColumn_schema]
+  exact Schema.wf_replace ((wfColumnNames_iff_schema_wf self).mp hwf)
+
+theorem wfColumnNames_transformColumn {α} [DataType.OfType α] (self : Raw) (name : String)
+    (hcol : self.hasColumn name)
+    (f : Option ((getColumnByName self name hcol).dataType.toType) → Option α)
+    (hwf : self.WfColumnNames) :
+    (transformColumn self name hcol f).WfColumnNames := by
+  rw [wfColumnNames_iff_schema_wf (transformColumn self name hcol f)]
+  rw [transformColumn_schema]
+  exact Schema.wf_replace ((wfColumnNames_iff_schema_wf self).mp hwf)
+
+theorem wfColumnNames_selectRows (self : Raw) (ns : Array (Fin self.nrows)) (h : self.WfColumnSize)
+    (hwf : self.WfColumnNames) :
+    (selectRows self ns h).WfColumnNames := by
+  simpa [wfColumnNames_iff_schema_wf, selectRows_schema] using (wfColumnNames_iff_schema_wf self).mp hwf
+
+theorem wfColumnNames_selectRowsByMask (self : Raw) (mask : Vector Bool self.nrows) (h : self.WfColumnSize)
+    (hwf : self.WfColumnNames) :
+    (selectRowsByMask self mask h).WfColumnNames := by
+  simpa [wfColumnNames_iff_schema_wf, selectRowsByMask_schema] using (wfColumnNames_iff_schema_wf self).mp hwf
+
+theorem wfColumnNames_tfilter (self : Raw) (p : Row → Bool) (h : self.WfColumnSize)
+    (hwf : self.WfColumnNames) :
+    (tfilter self p h).WfColumnNames := by
+  simpa [wfColumnNames_iff_schema_wf, tfilter_schema] using (wfColumnNames_iff_schema_wf self).mp hwf
+
+theorem wfColumnNames_dropColumn (self : Raw) (name : String) (hwf : self.WfColumnNames) :
+    (dropColumn self name).WfColumnNames := by
+  rw [wfColumnNames_iff_schema_wf (dropColumn self name)]
+  rw [dropColumn_schema]
+  exact Schema.wf_filter ((wfColumnNames_iff_schema_wf self).mp hwf)
+
+theorem wfColumnNames_dropColumns (self : Raw) (names : Array String) (hwf : self.WfColumnNames) :
+    (dropColumns self names).WfColumnNames := by
+  rw [wfColumnNames_iff_schema_wf (dropColumns self names)]
+  rw [dropColumns_schema]
+  exact Schema.wf_filter ((wfColumnNames_iff_schema_wf self).mp hwf)
+
+theorem wfColumnNames_vcat (self other : Raw) (hschema : self.schema = other.schema)
+    (hwf : self.WfColumnNames) :
+    (vcat self other hschema).WfColumnNames := by
+  simpa [wfColumnNames_iff_schema_wf, vcat_schema] using (wfColumnNames_iff_schema_wf self).mp hwf
+
+theorem wfColumnNames_hcat (self other : Raw)
+    (hwf₁ : self.WfColumnNames) (hwf₂ : other.WfColumnNames)
+    (hdisjoint :
+      ∀ (i : Fin self.ncols) (j : Fin other.ncols),
+        (self.getColumn i.val i.isLt).name ≠ (other.getColumn j.val j.isLt).name) :
+    (hcat self other).WfColumnNames := by
+  rw [wfColumnNames_iff_schema_wf (hcat self other)]
+  rw [hcat_schema]
+  have hs₁ : self.columns.size = self.schema.size := by simp [Raw.schema, Schema.size]
+  have hs₂ : other.columns.size = other.schema.size := by simp [Raw.schema, Schema.size]
+  exact Schema.wf_concat ((wfColumnNames_iff_schema_wf self).mp hwf₁) ((wfColumnNames_iff_schema_wf other).mp hwf₂)
+    fun i j => by
+      have isLt₁ : i.val < self.ncols := by simpa [schema_size_eq] using i.isLt
+      have isLt₂ : j.val < other.ncols := by simpa [schema_size_eq] using j.isLt
+      simpa [schema_getName_eq_getColumn_name i.val isLt₁, schema_getName_eq_getColumn_name j.val isLt₂]
+        using hdisjoint ⟨i, isLt₁⟩ ⟨j, isLt₂⟩
+
+theorem wfColumnNames_renameColumn (self : Raw) (oldName newName : String)
+    (hwf : self.WfColumnNames)
+    (hfresh :
+      ∀ (i : Fin self.ncols),
+        (self.getColumn i.val i.isLt).name ≠ newName ∨ (self.getColumn i.val i.isLt).name = oldName) :
+    (renameColumn self oldName newName).WfColumnNames := by
+  rw [wfColumnNames_iff_schema_wf (renameColumn self oldName newName)]
+  rw [renameColumn_schema_eq_rename]
+  have hs : self.columns.size = self.schema.size := by simp [Raw.schema, Schema.size]
+  exact Schema.wf_rename ((wfColumnNames_iff_schema_wf self).mp hwf) fun i => by
+    have isLt : i.val < self.ncols := by simpa [schema_size_eq] using i.isLt
+    have eqName : self.schema.getName i.val i.isLt = (self.getColumn i.val isLt).name := by
+      rw [schema_getName_eq_getColumn_name]
+    simpa [eqName, Column.spec] using hfresh ⟨i, isLt⟩
+
+theorem wfColumnNames_select (self : Raw) (schema' : Schema) (f : Row → (n : Nat) → n < self.nrows → Row)
+    (h₁ : ∀ row n h, (f row n h).schema = schema')
+    (h₂ : self.WfColumnSize)
+    (hwf_schema : schema'.Wf) :
+    (self.select schema' f h₁ h₂).WfColumnNames := by
+  simpa [wfColumnNames_iff_schema_wf, select_schema] using hwf_schema
+
+theorem wfColumnNames_dropna (self : Raw) (h : self.WfColumnSize)
+    (hwf : self.WfColumnNames) :
+    (dropna self h).WfColumnNames := by
+  simpa [wfColumnNames_iff_schema_wf, dropna_schema] using (wfColumnNames_iff_schema_wf self).mp hwf
+
+theorem wfColumnNames_fillna (self : Raw) (column : String) (h₁ : self.hasColumn column)
+    (replacement : (getColumnByName self column h₁).dataType.toType)
+    (hwf : self.WfColumnNames) :
+    (fillna self column h₁ replacement).WfColumnNames := by
+  rw [wfColumnNames_iff_schema_wf (fillna self column h₁ replacement)]
+  simp only [fillna, replaceColumn_schema]
+  exact Schema.wf_replace ((wfColumnNames_iff_schema_wf self).mp hwf)
+
+theorem wfColumnNames_count (self : Raw) (column : String) (h : self.hasColumn column) :
+    (count self column h).WfColumnNames := by
+  rw [wfColumnNames_iff_schema_wf (count self column h)]
+  rw [count_schema]
+  intro i j ne
+  grind
+
+end wfColumnNames
 
 end Tables.Table.Raw
 
