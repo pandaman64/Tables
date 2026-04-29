@@ -94,6 +94,8 @@ theorem ofSpecs_getDataType (specs : Array (String × DataType)) (i : Nat) (h : 
   (ofSpecs specs).getDataType i h = specs[i].2 := by
   rfl
 
+theorem wf_default : (default : Schema).Wf := by decide
+
 theorem wf_replace {schema : Schema} {name : String} {dataType : DataType}
     (hwf : schema.Wf) : (schema.replace name dataType).Wf := by
   intro i j hij

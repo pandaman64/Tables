@@ -33,9 +33,6 @@ namespace Raw
 def WfColumnSize (self : Raw) : Prop :=
   ∀ column ∈ self.columns, column.size = self.nrows
 
-instance : Inhabited Raw :=
-  ⟨{ columns := #[], nrows := 0 }⟩
-
 def ncols (self : Raw) : Nat :=
   self.columns.size
 
@@ -59,6 +56,8 @@ def empty (schema : Schema) : Raw :=
     columns := schema.specs.map fun (name, dataType) => { name, dataType, values := #[] },
     nrows := 0,
   }
+
+instance : Inhabited Raw := ⟨.empty default⟩
 
 @[simp, grind =]
 theorem empty_schema {schema : Schema} : (empty schema).schema = schema := by

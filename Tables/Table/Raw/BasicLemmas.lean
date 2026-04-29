@@ -21,17 +21,6 @@ theorem Column_size_push (c : Column) (v : Option c.dataType.toType) : (c.push v
   show (c.values.push v).size = c.values.size + 1
   simp [Array.size_push]
 
-private theorem list_foldl_push_pair_size_eq
-    {α β} (l : List (α × β)) (v0 : Array α) (c0 : Array β) (hv0 : v0.size = c0.size) :
-    (l.foldl (fun p x => (p.1.push x.1, p.2.push x.2)) (v0, c0)).1.size =
-      (l.foldl (fun p x => (p.1.push x.1, p.2.push x.2)) (v0, c0)).2.size := by
-  induction l generalizing v0 c0 hv0 with
-  | nil => exact hv0
-  | cons a l ih =>
-    simp only [List.foldl]
-    refine ih (v0 := v0.push a.1) (c0 := c0.push a.2) ?_
-    simp [Array.size_push, hv0]
-
 theorem mapValues_size_eq {α} [DataType.OfType α] (c : Column) (f : Option c.dataType.toType → Option α) :
     (c.mapValues f).size = c.size := by
   grind [Column.mapValues, Column.size, DataType.OfType.eq, Array.size_map]
@@ -44,6 +33,9 @@ theorem wfColumnSize_empty (schema : Schema) : (empty schema).WfColumnSize := by
   rw [empty, Array.mem_map] at hc
   obtain ⟨x, _, rfl⟩ := hc
   simp [empty, Column.size]
+
+theorem wfColumnSize_default : (default : Raw).WfColumnSize :=
+  wfColumnSize_empty default
 
 theorem wfColumnSize_ofColumns
     (columns : Array Column) (nrows : Nat) (h : ∀ column ∈ columns, column.size = nrows) :
@@ -481,6 +473,9 @@ theorem wfColumnNames_iff_schema_wf (self : Raw) : self.WfColumnNames ↔ self.s
 
 theorem wfColumnNames_empty (schema : Schema) (hwf : schema.Wf) : (empty schema).WfColumnNames := by
   simpa [wfColumnNames_iff_schema_wf, empty_schema] using hwf
+
+theorem wfColumnNames_default : (default : Raw).WfColumnNames :=
+  wfColumnNames_empty default (Schema.wf_default)
 
 theorem wfColumnNames_ofColumns (columns : Array Column) (nrows : Nat)
     (hwf : ∀ (i j : Fin columns.size), i ≠ j → columns[i].name ≠ columns[j].name) :
