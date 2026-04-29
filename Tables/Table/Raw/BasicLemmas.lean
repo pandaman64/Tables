@@ -3,6 +3,7 @@ module
 public import Tables.Table.Raw.Basic
 import all Tables.Table.Raw.Basic
 import Init.Data.Array.Lemmas
+import Init.Data.Array.OfFn
 import Std.Data.HashMap.Lemmas
 
 open Std (HashMap)
@@ -56,6 +57,17 @@ theorem mem_getColumnByName (self : Raw) (name : String) (h : self.hasColumn nam
   unfold getColumnByName getColumnByName?
   grind
 
+theorem getColumnByName?_name_of_some (self : Raw) (nm : String) (c : Column) (h : self.getColumnByName? nm = some c) :
+    c.name = nm := by
+  grind only [getColumnByName?, → find?_some]
+
+@[simp]
+theorem getColumnByName_name (self : Raw) (nm : String) (h : self.hasColumn nm) :
+    (self.getColumnByName nm h).name = nm := by
+  apply getColumnByName?_name_of_some self nm _
+  unfold getColumnByName
+  grind only [= Option.some_get]
+
 theorem wfColumnSize_selectColumns
     (self : Raw) (ns : Array (Fin self.ncols)) (hwf : self.WfColumnSize) :
     (selectColumns self ns).WfColumnSize := by
@@ -68,15 +80,8 @@ theorem wfColumnSize_selectColumns
 theorem wfColumnSize_selectColumnsByMask
     (self : Raw) (mask : Vector Bool self.ncols) (hwf : self.WfColumnSize) :
     (selectColumnsByMask self mask).WfColumnSize := by
-  intro c hc
-  rw [selectColumnsByMask, WfColumnSize] at *
-  rw [Array.mem_filterMap] at hc
-  obtain ⟨i, hmem, hsome⟩ := hc
-  have hlt : i.val < self.ncols :=
-    (Array.mem_range (m := i.val) (n := self.ncols)).1 (Subtype.property i)
-  have heq : c = self.getColumn i.val hlt := by
-    grind
-  exact heq ▸ (hwf _ (mem_getColumn self i.val hlt))
+  unfold selectColumnsByMask
+  exact wfColumnSize_selectColumns self _ hwf
 
 theorem wfColumnSize_selectColumnsByName
     (self : Raw) (names : Array String) (h : ∀ name ∈ names, self.hasColumn name) (hwf : self.WfColumnSize) :
@@ -278,11 +283,13 @@ theorem wfColumnSize_fillna
   · exact hsz
   · exact hwf
 
--- Not in Std
+/--
+Upstreams to `Std.Data.HashMap.Lemmas`: `valuesArray` parallels `keysArray` — same length as `size`.
+-/
 private theorem HashMap.size_valuesArray.{u, v}
     {α : Type u} {β : Type v} {_ : BEq α} {_ : Hashable α}
     [EquivBEq α] [LawfulHashable α] (m : Std.HashMap α β) :
-  m.valuesArray.size = m.size := by
+    m.valuesArray.size = m.size := by
   sorry
 
 theorem wfColumnSize_count
@@ -300,6 +307,180 @@ theorem wfColumnSize_count
     simp [Column.size, HashMap.size_valuesArray]
 
 end wfColumnSize
+
+@[grind =]
+theorem renameColumn_eq_of_not_hasColumn (self : Raw) (oldName newName : String) (h : ¬self.hasColumn oldName) :
+    renameColumn self oldName newName = self := by
+  unfold renameColumn
+  simp only [Raw.ext_iff, and_true]
+  grind [hasColumn]
+
+section schema
+
+theorem ofColumns_schema (columns : Array Column) (nrows : Nat) :
+    (ofColumns columns nrows).schema = Schema.ofSpecs (columns.map Column.spec) := by
+  simp [Raw.ofColumns, Raw.schema, Schema.ofSpecs, Column.spec]
+
+theorem selectColumns_schema (self : Raw) (ns : Array (Fin self.ncols)) :
+    (selectColumns self ns).schema = Schema.ofSpecs (ns.map fun i => (self.getColumn i.val i.isLt).spec) := by
+  simp [Raw.selectColumns, Raw.schema, Schema.ofSpecs, Schema.ext_iff, Column.spec]
+
+theorem selectColumnsByMask_schema (self : Raw) (mask : Vector Bool self.ncols) :
+    let ns := (Array.range self.ncols).attach.filterMap fun i =>
+      have isLt : Subtype.val i < self.ncols := by grind
+      if mask[i.val] then
+        some ⟨i.val, isLt⟩
+      else
+        none
+    (selectColumnsByMask self mask).schema = (selectColumns self ns).schema := by
+  rfl
+
+theorem selectColumnsByName_schema (self : Raw) (names : Array String)
+    (h : ∀ name ∈ names, self.hasColumn name) :
+    (selectColumnsByName self names h).schema =
+      Schema.ofSpecs (names.attach.map fun nm => (self.getColumnByName nm.val (h nm.val nm.property)).spec) := by
+  simp [Raw.selectColumnsByName, Raw.schema, Schema.ofSpecs, Schema.ext_iff, Column.spec]
+
+theorem take_schema (self : Raw) (n : Nat) :
+    (take self n).schema = self.schema := by
+  simp [Raw.take, Raw.schema, Schema.ext_iff]
+
+theorem addRow_schema (self : Raw) (row : Row) (h : row.schema = self.schema) :
+    (addRow self row h).schema = self.schema := by
+  simp only [schema, addRow, ncols, getColumn, map_ofFn, Schema.mk.injEq, Array.ext_iff, size_ofFn,
+    size_map, getElem_ofFn, Function.comp_apply, Column.push_name, Column.push_dataType,
+    getElem_map, Prod.mk.injEq, true_and]
+  grind only
+
+theorem addRows_schema (self : Raw) (rows : Array Row) (h : ∀ row ∈ rows, row.schema = self.schema) :
+    (addRows self rows h).schema = self.schema := by
+  simp only [schema, addRows, ncols, getColumn, Fin.getElem_fin, map_ofFn, Schema.mk.injEq,
+    Array.ext_iff, size_ofFn, size_map, getElem_ofFn, Function.comp_apply, getElem_map,
+    Prod.mk.injEq, true_and]
+  grind only
+
+theorem ofRows_schema (schema : Schema) (rows : Array Row) (h : ∀ row ∈ rows, row.schema = schema) :
+    (ofRows schema rows h).schema = schema := by
+  simp [ofRows, empty_schema, addRows_schema]
+
+theorem addColumn_schema (self : Raw) (column : Column) :
+    (addColumn self column).schema = self.schema.push column.spec := by
+  simp [Raw.addColumn, Raw.schema, Schema.push, Column.spec]
+
+theorem buildColumn_schema {α} [DataType.OfType α] (self : Raw) (name : String) (f : Row → Option α)
+    (h : self.WfColumnSize) :
+    (buildColumn self name f h).schema = self.schema.push (name, DataType.OfType.dataType α) := by
+  simp [Raw.buildColumn, Raw.addColumn, Raw.schema, Column.ofRawValues, Schema.push]
+
+theorem replaceColumn_schema (self : Raw) (column : Column) :
+    (replaceColumn self column).schema = self.schema.replace column.name column.dataType :=
+  Schema.ext (by
+    dsimp only [Raw.replaceColumn, Raw.schema, Schema.replace]
+    refine Array.ext ?_ ?_
+    · simp [Array.size_map]
+    · grind only [= getElem_map])
+
+theorem transformColumn_schema {α} [DataType.OfType α] (self : Raw) (colName : String) (hcol : self.hasColumn colName)
+    (f : Option ((getColumnByName self colName hcol).dataType.toType) → Option α) :
+    (transformColumn self colName hcol f).schema = self.schema.replace colName (DataType.OfType.dataType α) :=
+  Schema.ext (by
+    dsimp only [Raw.transformColumn, Raw.replaceColumn, Raw.schema, Schema.replace]
+    refine Array.ext ?_ ?_
+    · simp [Array.size_map]
+    · intro i hi₁ hi₂
+      have hi₁' : i < self.columns.size := by simpa [Array.size_map] using hi₁
+      simp only [Array.getElem_map, Column.mapValues_name, getColumnByName_name]
+      by_cases h : (self.columns[i]'hi₁').name = colName <;> simp [h, Column.mapValues])
+
+theorem selectRows_schema (self : Raw) (ns : Array (Fin self.nrows)) (h : self.WfColumnSize) :
+    (selectRows self ns h).schema = self.schema := by
+  simp [Raw.selectRows, ofRows_schema]
+
+theorem selectRowsByMask_schema (self : Raw) (mask : Vector Bool self.nrows) (h : self.WfColumnSize) :
+    (selectRowsByMask self mask h).schema = self.schema := by
+  simp [Raw.selectRowsByMask]
+  rw [selectRows_schema]
+
+theorem tfilter_schema (self : Raw) (p : Row → Bool) (h : self.WfColumnSize) :
+    (tfilter self p h).schema = self.schema := by
+  simp [Raw.tfilter, ofRows_schema]
+
+theorem dropColumn_schema (self : Raw) (name : String) :
+    (dropColumn self name).schema = self.schema.filter fun x => x.fst ≠ name :=
+  Schema.ext (by
+    dsimp only [Raw.dropColumn, Raw.schema, Schema.filter]
+    exact Eq.symm <|
+      @Array.filter_map _ _
+        (fun x : String × DataType => decide (x.fst ≠ name))
+        (fun column : Column => (column.name, column.dataType))
+        self.columns)
+
+theorem dropColumns_schema (self : Raw) (names : Array String) :
+    (dropColumns self names).schema = self.schema.filter fun x => x.fst ∉ names :=
+  Schema.ext (by
+    dsimp only [Raw.dropColumns, Raw.schema, Schema.filter]
+    exact Eq.symm <|
+      @Array.filter_map _ _
+        (fun x : String × DataType => decide ¬x.fst ∈ names)
+        (fun column : Column => (column.name, column.dataType))
+        self.columns)
+
+theorem hcat_schema (self other : Raw) :
+    (hcat self other).schema = self.schema ++ other.schema := by
+  simp [Raw.hcat, Raw.schema, Schema.append_def]
+
+theorem vcat_schema (self other : Raw) (h : self.schema = other.schema) :
+    (vcat self other h).schema = self.schema := by
+  simp only [schema, vcat, ncols, getColumn, map_ofFn, Schema.mk.injEq, Array.ext_iff, size_ofFn,
+    size_map, getElem_ofFn, Function.comp_apply, Column.concat_name, Column.concat_dataType,
+    getElem_map, Prod.mk.injEq, true_and]
+  grind only
+
+theorem renameColumn_schema_eq_rename (self : Raw) (oldName newName : String) :
+    (renameColumn self oldName newName).schema = self.schema.rename oldName newName :=
+  Schema.ext (by
+    dsimp only [Raw.renameColumn, Raw.schema, Schema.rename]
+    refine Array.ext ?_ ?_
+    · simp [Array.size_map]
+    · intro i hi₁ hi₂
+      have hi₁' : i < self.columns.size := by simpa [Array.size_map] using hi₁
+      simp only [Array.getElem_map]
+      by_cases h : (self.columns[i]'hi₁').name = oldName <;> simp [h])
+
+theorem renameColumn_schema_of_hasColumn (self : Raw) (oldName newName : String) (_h : self.hasColumn oldName) :
+    (renameColumn self oldName newName).schema = self.schema.rename oldName newName :=
+  renameColumn_schema_eq_rename self oldName newName
+
+theorem renameColumn_schema_of_not_hasColumn (self : Raw) (oldName newName : String) (h : ¬self.hasColumn oldName) :
+    (renameColumn self oldName newName).schema = self.schema := by
+  rw [renameColumn_eq_of_not_hasColumn self oldName newName h]
+
+theorem renameColumn_schema (self : Raw) (oldName newName : String) :
+    (renameColumn self oldName newName).schema = self.schema.rename oldName newName :=
+  renameColumn_schema_eq_rename self oldName newName
+
+theorem select_schema (self : Raw) (schema' : Schema) (f : Row → (n : Nat) → n < self.nrows → Row)
+    (h₁ : ∀ row n h, (f row n h).schema = schema') (h₂ : self.WfColumnSize) :
+    (self.select schema' f h₁ h₂).schema = schema' := by
+  simp [Raw.select, ofRows_schema]
+
+theorem dropna_schema (self : Raw) (h : self.WfColumnSize) :
+    (dropna self h).schema = self.schema := by
+  simp [Raw.dropna, tfilter_schema]
+
+-- `fillna_schema` can replace multiple columns with the same name but different data types
+-- if the table is not well-formed.
+-- theorem fillna_schema (self : Raw) (column : String) (h₁ : self.hasColumn column)
+--     (replacement : (getColumnByName self column h₁).dataType.toType) :
+--     (self.fillna column h₁ replacement).schema = self.schema := by
+--   sorry
+
+theorem count_schema (self : Raw) (column : String) (h : self.hasColumn column) :
+    (count self column h).schema = Schema.ofSpecs #[("value", (self.getColumnByName column h).dataType), ("count", DataType.nat)] := by
+  unfold Raw.count Raw.ofColumns
+  simp [Raw.schema, Schema.ofSpecs]
+
+end schema
 
 end Tables.Table.Raw
 

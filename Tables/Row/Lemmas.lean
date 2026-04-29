@@ -25,12 +25,12 @@ theorem schema_getDataType_eq_getDataType (self : Row) (i : Nat) (h : i < self.s
 theorem concat_size (self other : Row) : (self.concat other).size = self.size + other.size := by
   simp [Row.concat, Row.size]
 
-@[simp, grind =]
+@[grind =]
 theorem append_def (self other : Row) : self ++ other = { cells := self.cells ++ other.cells } := (rfl)
 
 @[simp, grind =]
 theorem append_schema (self other : Row) : (self ++ other).schema = self.schema ++ other.schema := by
-  simp [Row.schema, Schema.append_def]
+  simp [Row.schema, Row.append_def, Schema.append_def]
 
 @[simp, grind =]
 theorem selectNotByNames_schema (self : Row) (names : Array String) : (self.selectNotByNames names).schema = self.schema.selectNotByNames names := by

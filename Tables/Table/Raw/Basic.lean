@@ -22,6 +22,7 @@ In other words, it's possible to have two columns with the same name, or columns
 On the other hand, within each column, the values are guaranteed to be of the same data type.
 When manipulating a raw table, we take the minimal amount of proofs needed to maintain the within-column invariants.
 -/
+@[ext]
 structure Raw where
   columns : Array Column
   nrows : Nat
@@ -154,13 +155,13 @@ def selectColumns (self : Raw) (ns : Array (Fin self.ncols)) : Raw :=
 TableAPI: selectColumns (overloading 1/3)
 -/
 def selectColumnsByMask (self : Raw) (mask : Vector Bool self.ncols) : Raw :=
-  let columns := (Array.range self.ncols).attach.filterMap fun i =>
+  let ns := (Array.range self.ncols).attach.filterMap fun i =>
     have isLt : Subtype.val i < self.ncols := by grind
     if mask[i.val] then
-      some (self.getColumn i.val isLt)
+      some ⟨i.val, isLt⟩
     else
       none
-  { columns, nrows := self.nrows }
+  self.selectColumns ns
 
 /--
 TableAPI: selectColumns (overloading 3/3)
