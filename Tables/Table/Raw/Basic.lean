@@ -6,6 +6,7 @@ We specify the corresponding TableAPI definitions when we use a different name.
 public import Tables.Error
 public import Tables.Column
 public import Tables.Row
+public import Tables.Data.Array.Pairwise
 import Std.Data.HashMap
 
 open Std (HashMap)
@@ -33,6 +34,9 @@ namespace Raw
 
 def WfColumnSize (self : Raw) : Prop :=
   ∀ column ∈ self.columns, column.size = self.nrows
+
+instance {self : Raw} : Decidable (WfColumnSize self) :=
+  inferInstanceAs (Decidable (∀ column ∈ self.columns, column.size = self.nrows))
 
 def ncols (self : Raw) : Nat :=
   self.columns.size
@@ -204,8 +208,6 @@ def addRows (self : Raw) (rows : Array Row) (h : ∀ row ∈ rows, row.schema = 
 
 /--
 TableAPI: values
-
-Note: we require the schema to be provided explicitly.
 -/
 def ofRows (schema : Schema) (rows : Array Row) (h : ∀ row ∈ rows, row.schema = schema) : Raw :=
   (empty schema).addRows rows (by simpa using h)
@@ -256,21 +258,15 @@ def selectRowsByMask (self : Raw) (mask : Vector Bool self.nrows) (h : self.WfCo
   self.selectRows ns h
 
 def tfilter (self : Raw) (p : Row → Bool) (h : self.WfColumnSize) : Raw :=
-  let rows := (Array.range self.nrows).attach.filterMap fun i =>
-    have isLt : Subtype.val i < self.nrows := by grind
+  let rows : Array { row : Row // row.schema = self.schema } := Nat.fold (init := #[]) self.nrows fun i isLt rows =>
     let row := self.getRow i isLt h
     if p row then
-      some row
+      rows.push ⟨row, by simp [row, getRow_schema]⟩
     else
-      none
-  have h (row : Row) (mem : row ∈ rows) : row.schema = self.schema := by
-    unfold rows at mem
-    rw [Array.mem_filterMap] at mem
-    simp only [Array.mem_attach, Option.ite_none_right_eq_some, Option.some.injEq, true_and,
-      Subtype.exists, Array.mem_range] at mem
-    obtain ⟨i, hi, _, eq⟩ := mem
-    exact eq ▸ getRow_schema i hi h
-  ofRows self.schema rows h
+      rows
+  have h : rows.Pairwise (fun x y => x.val.schema = y.val.schema) := by
+    grind [Array.pairwise_iff_getElem]
+  ofRows self.schema rows.unattach (by grind [Array.mem_unattach])
 
 def dropColumn (self : Raw) (name : String) : Raw :=
   let columns := self.columns.filter fun column => column.name ≠ name

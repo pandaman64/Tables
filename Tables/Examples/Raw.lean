@@ -13,7 +13,7 @@ def students : Raw :=
     Column.ofRawValues "name" #[some "Bob", some "Alice", some "Eve"],
     Column.ofRawValues "age" #[some 12, some 17, some 13],
     Column.ofRawValues "favorite color" #[some "blue", some "green", some "red"],
-  ] 3
+  ]
 
 #eval students.toFormat
 
@@ -22,7 +22,7 @@ def studentsMissing : Raw :=
     Column.ofRawValues "name" #[some "Bob", some "Alice", some "Eve"],
     Column.ofRawValues "age" #[none, some 17, some 13],
     Column.ofRawValues "favorite color" #[some "blue", some "green", none],
-  ] 3
+  ]
 
 #eval studentsMissing.toFormat
 
@@ -34,7 +34,7 @@ def employees : Raw :=
     Column.ofRawValues "Department ID" #[
       some 31, some 33, some 33, some 34, some 34, none
     ],
-  ] 6
+  ]
 
 #eval employees.toFormat
 
@@ -42,7 +42,7 @@ def departments : Raw :=
   Raw.ofColumns #[
     Column.ofRawValues "Department ID" #[some 31, some 33, some 34, some 35],
     Column.ofRawValues "Department Name" #[some "Sales", some "Engineering", some "Clerical", some "Marketing"],
-  ] 4
+  ]
 
 #eval departments.toFormat
 
@@ -58,7 +58,7 @@ def jellyAnon : Raw :=
     Column.ofRawValues "orange"   #[some true,  some false, some false, some false, some false, some true,  some false, some true,  some true,  some false],
     Column.ofRawValues "pink"     #[some false, some false, some true,  some false, some true,  some true,  some true,  some false, some false, some true],
     Column.ofRawValues "purple"   #[some false, some false, some false, some false, some false, some false, some false, some false, some false, some false],
-  ] 10
+  ]
 
 #eval jellyAnon.toFormat
 
@@ -77,7 +77,7 @@ def jellyNamed : Raw :=
     Column.ofRawValues "orange"   #[some true,  some false, some false, some false, some false, some true,  some false, some true,  some true,  some false],
     Column.ofRawValues "pink"     #[some false, some false, some true,  some false, some true,  some true,  some true,  some false, some false, some true],
     Column.ofRawValues "purple"   #[some false, some false, some false, some false, some false, some false, some false, some false, some false, some false],
-  ] 10
+  ]
 
 #eval jellyNamed.toFormat
 
@@ -91,7 +91,7 @@ def gradebook : Raw :=
     Column.ofRawValues "quiz3" #[some 7, some 8, some 8],
     Column.ofRawValues "quiz4" #[some 9, some 7, some 8],
     Column.ofRawValues "final" #[some 87, some 85, some 77],
-  ] 3
+  ]
 
 #eval gradebook.toFormat
 
@@ -105,7 +105,7 @@ def gradebookMissing : Raw :=
     Column.ofRawValues "quiz3" #[some 7, none, some 8],
     Column.ofRawValues "quiz4" #[some 9, some 7, some 8],
     Column.ofRawValues "final" #[some 87, some 85, some 77],
-  ] 3
+  ]
 
 #eval gradebookMissing.toFormat
 
@@ -116,11 +116,11 @@ def gradebookSeq : Raw :=
     Column.ofRawValues "quizzes" #[some #[8, 9, 7, 9], some #[6, 8, 8, 7], some #[7, 9, 8, 8]],
     Column.ofRawValues "midterm" #[some 77, some 88, some 84],
     Column.ofRawValues "final" #[some 87, some 85, some 77],
-  ] 3
+  ]
 
 #eval gradebookSeq.toFormat
 
-def studentsGrades := students.leftJoin gradebook #["name", "age"] (by decide) (by decide)
+def studentsGrades := students.leftJoin gradebook #["name", "age"] sorry sorry
 
 #eval! studentsGrades.toFormat
 

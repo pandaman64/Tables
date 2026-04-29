@@ -43,14 +43,11 @@ theorem wfColumnSize_ofColumns
   unfold ofColumns
   split
   next lt =>
+    rw [Array.pairwise_iff_getElem] at h
     dsimp [WfColumnSize]
     intro c hc
     obtain ⟨n, lt', eq⟩ := Array.getElem_of_mem hc
-    match n with
-    | 0 => simp [←eq]
-    | n + 1 =>
-      rw [Array.pairwise_iff_getElem] at h
-      rw [←eq, h 0 (n + 1) lt lt' (by simp)]
+    grind
   next => exact wfColumnSize_default
 
 theorem mem_getColumn (self : Raw) (i : Nat) (h : i < self.ncols) : self.getColumn i h ∈ self.columns := by
@@ -272,7 +269,8 @@ theorem wfColumnSize_select
   grind [Array.mem_unattach, Fin, Fin.eta, Fin.is_lt, getRow, getRow_schema, Row, Row.schema, schema]
 
 theorem wfColumnSize_dropna (self : Raw) (h : self.WfColumnSize) : (dropna self h).WfColumnSize := by
-  unfold dropna; exact wfColumnSize_tfilter self _ h
+  unfold dropna
+  exact wfColumnSize_tfilter self _ h
 
 theorem wfColumnSize_fillna
     (self : Raw) (column : String) (h₁ : self.hasColumn column) (replacement : (getColumnByName self column h₁).dataType.toType) (hwf : self.WfColumnSize) :

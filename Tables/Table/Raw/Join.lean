@@ -20,27 +20,20 @@ def distinct (self : Raw) (h : self.WfColumnSize) : Raw :=
     if row ∈ seen then
       (seen, rows)
     else
-      have h' : row.schema = schema := by
-        simp [row, getRow_schema, schema]
+      have h' : row.schema = self.schema := by
+        simp [row, getRow_schema]
       (HashSet.insert seen row, rows.push ⟨row, h'⟩)
 
   ofRows schema rows.unattach (by grind [Array.mem_unattach])
 
-def crossJoin (self other : Raw)
-    (h₁ : self.WfColumnSize) (h₂ : other.WfColumnSize) : Raw :=
+def crossJoin (self other : Raw) (h₁ : self.WfColumnSize) (h₂ : other.WfColumnSize) : Raw :=
   let schema := self.schema ++ other.schema
-  let rows := Array.flatten <| Array.ofFn fun (i : Fin self.nrows) =>
-    Array.ofFn fun (j : Fin other.nrows) =>
-      self.getRow i i.isLt h₁ ++ other.getRow j j.isLt h₂
-  have h (row : Row) (mem : row ∈ rows) : row.schema = schema := by
-    rw [Array.mem_flatten] at mem
-    obtain ⟨xs, h, mem⟩ := mem
-    rw [Array.mem_ofFn] at h
-    obtain ⟨i, eq⟩ := h
-    rw [←eq, Array.mem_ofFn] at mem
-    obtain ⟨j, eq⟩ := mem
-    grind only [= Row.append_schema, = getRow_schema]
-  ofRows schema rows h
+  let rows : Array { row : Row // row.schema = schema } :=
+    Nat.fold (init := #[]) self.nrows fun i isLt rows =>
+      rows ++ Array.ofFn fun (j : Fin other.nrows) =>
+        ⟨self.getRow i isLt h₁ ++ other.getRow j j.isLt h₂, by simp⟩
+
+  ofRows schema rows.unattach (by grind [Array.mem_unattach])
 
 def leftJoin (self other : Raw) (keys : Array String)
     (h₁ : self.WfColumnSize) (h₂ : other.WfColumnSize) : Raw :=
@@ -52,26 +45,17 @@ def leftJoin (self other : Raw) (keys : Array String)
     m.alter keyRow fun
       | some xs => some (xs.push ⟨i, isLt⟩)
       | none => some #[⟨i, isLt⟩]
-  let rows : Array Row := Array.flatten <| (Array.finRange self.nrows).map fun i =>
-    let row := self.getRow i.val i.isLt h₁
-    let keyRow := row.selectByNames keys
-    match otherRowsMap.get? keyRow with
-    | some ns =>
-      let newRows := ns.map fun j => row ++ (other.getRow j.val j.isLt h₂).selectNotByNames keys
-      newRows
-    | none => #[]
 
-  have h (row : Row) (mem : row ∈ rows) : row.schema = schema := by
-    simp only [HashMap.get?_eq_getElem?, Array.mem_flatten, Array.mem_map, rows] at mem
-    obtain ⟨xs, ⟨i, mem, eq⟩, mem'⟩ := mem
-    split at eq
-    next ns eq' =>
-      subst xs
-      simp only [Array.mem_map] at mem'
-      obtain ⟨n, mem'', eq''⟩ := mem'
-      simp only [←eq'', Row.append_schema, getRow_schema, Row.selectNotByNames_schema, schema]
-    next => grind
-  ofRows schema rows h
+  let rows : Array { row : Row // row.schema = schema } :=
+    Nat.fold (init := #[]) self.nrows fun i isLt rows =>
+      let row := self.getRow i isLt h₁
+      let keyRow := row.selectByNames keys
+      match otherRowsMap.get? keyRow with
+      | some ns =>
+        rows ++ ns.map fun j => ⟨row ++ (other.getRow j.val j.isLt h₂).selectNotByNames keys, by simp [row, schema]⟩
+      | none => rows
+
+  ofRows schema rows.unattach (by grind [Array.mem_unattach])
 
 end Tables.Table.Raw
 
