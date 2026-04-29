@@ -51,13 +51,13 @@ def empty? (schema : Schema) : Except Error Table :=
   else
     .error .schemaNotWellFormed
 
-def ofColumns (columns : Array Column) (nrows : Nat)
-    (hsize : ∀ column ∈ columns, column.size = nrows)
-    (hnames : ∀ (i j : Fin columns.size), i ≠ j → columns[i].name ≠ columns[j].name) : Table :=
+def ofColumns (columns : Array Column)
+    (hsize : columns.Pairwise (fun x y => x.size = y.size))
+    (hnames : columns.Pairwise (fun x y => x.name ≠ y.name)) : Table :=
   {
-    raw := Raw.ofColumns columns nrows
-    wfColumnSize := wfColumnSize_ofColumns columns nrows hsize
-    wfColumnNames := wfColumnNames_ofColumns columns nrows hnames
+    raw := Raw.ofColumns columns
+    wfColumnSize := wfColumnSize_ofColumns columns hsize
+    wfColumnNames := wfColumnNames_ofColumns columns hnames
   }
 
 private def firstDupColumnName (columns : Array Column) : String := Id.run do
@@ -67,16 +67,11 @@ private def firstDupColumnName (columns : Array Column) : String := Id.run do
         return columns[i].name
   pure ""
 
-def ofColumns? (columns : Array Column) (nrows : Nat) : Except Error Table :=
-  if h : (∀ column ∈ columns, column.size = nrows) ∧
-      (∀ (i j : Fin columns.size), i ≠ j → columns[i].name ≠ columns[j].name) then
-    .ok (ofColumns columns nrows h.1 h.2)
+def ofColumns? (columns : Array Column) : Except Error Table :=
+  if h : columns.Pairwise (fun x y => x.size = y.size) ∧ columns.Pairwise (fun x y => x.name ≠ y.name) then
+    .ok (ofColumns columns h.1 h.2)
   else
-    let i := columns.findIdx (fun c => decide (c.size ≠ nrows))
-    if hi : i < columns.size then
-      .error (.mismatchedRowCount nrows columns[i].size)
-    else
-      .error (.duplicateColumnName (firstDupColumnName columns))
+    .error (.duplicateColumnName (firstDupColumnName columns))
 
 def getRow (self : Table) (i : Nat) (h₁ : i < self.nrows) : Row :=
   self.raw.getRow i h₁ self.wfColumnSize

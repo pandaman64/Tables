@@ -3,6 +3,7 @@ module
 We specify the corresponding TableAPI definitions when we use a different name.
 -/
 
+public import Tables.Error
 public import Tables.Column
 public import Tables.Row
 import Std.Data.HashMap
@@ -63,8 +64,11 @@ instance : Inhabited Raw := ⟨.empty default⟩
 theorem empty_schema {schema : Schema} : (empty schema).schema = schema := by
   simp [Raw.schema, Raw.empty, Array.map_map, Function.comp_def]
 
-def ofColumns (columns : Array Column) (nrows : Nat) : Raw :=
-  { columns, nrows }
+def ofColumns (columns : Array Column) : Raw :=
+  if h : columns.size > 0 then
+    { columns, nrows := columns[0].size }
+  else
+    default
 
 def getRow (self : Raw) (i : Nat) (h₁ : i < self.nrows) (h₂ : self.WfColumnSize) : Row :=
   let cells := self.columns.attach.map fun column =>
@@ -348,7 +352,7 @@ def count (self : Raw) (column : String) (h : self.hasColumn column) : Raw :=
   Raw.ofColumns #[
     { name := "value", dataType := column.dataType, values := values },
     { name := "count", dataType := DataType.nat, values := counts.map some },
-  ] values.size
+  ]
 
 def toString (self : Raw) : String := Id.run do
   let columns := self.columns.map fun column =>
@@ -384,7 +388,7 @@ where
 def toFormat (self : Raw) : Std.Format := self.toString.toFormat
 
 def WfColumnNames (self : Raw) : Prop :=
-  ∀ (i j : Fin self.ncols), i ≠ j → (self.getColumn i).name ≠ (self.getColumn j).name
+  ∀ (i j : Fin self.ncols), i < j → (self.getColumn i).name ≠ (self.getColumn j).name
 
 end Raw
 

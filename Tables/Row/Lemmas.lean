@@ -34,7 +34,7 @@ theorem append_schema (self other : Row) : (self ++ other).schema = self.schema 
 
 @[simp, grind =]
 theorem selectNotByNames_schema (self : Row) (names : Array String) : (self.selectNotByNames names).schema = self.schema.selectNotByNames names := by
-  simp only [schema, selectNotByNames, decide_not, Schema.selectNotByNames, Array.filter_map, Function.comp_def]
+  simp [schema, selectNotByNames, Schema.selectNotByNames, Schema.filter, Schema.ofSpecs, Array.filter_map, Function.comp_def, -Array.size_map]
 
 end Tables.Row
 

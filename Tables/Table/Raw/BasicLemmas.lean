@@ -38,9 +38,20 @@ theorem wfColumnSize_default : (default : Raw).WfColumnSize :=
   wfColumnSize_empty default
 
 theorem wfColumnSize_ofColumns
-    (columns : Array Column) (nrows : Nat) (h : ∀ column ∈ columns, column.size = nrows) :
-    (ofColumns columns nrows).WfColumnSize :=
-  h
+    (columns : Array Column) (h : columns.Pairwise (fun x y => x.size = y.size)) :
+    (ofColumns columns).WfColumnSize := by
+  unfold ofColumns
+  split
+  next lt =>
+    dsimp [WfColumnSize]
+    intro c hc
+    obtain ⟨n, lt', eq⟩ := Array.getElem_of_mem hc
+    match n with
+    | 0 => simp [←eq]
+    | n + 1 =>
+      rw [Array.pairwise_iff_getElem] at h
+      rw [←eq, h 0 (n + 1) lt lt' (by simp)]
+  next => exact wfColumnSize_default
 
 theorem mem_getColumn (self : Raw) (i : Nat) (h : i < self.ncols) : self.getColumn i h ∈ self.columns := by
   simp [getColumn]
@@ -279,15 +290,7 @@ theorem wfColumnSize_count
     (self : Raw) (column : String) (h : self.hasColumn column) : (count self column h).WfColumnSize := by
   unfold count
   apply wfColumnSize_ofColumns
-  intro c hc
-  simp only [List.mem_toArray, List.mem_cons, List.not_mem_nil, or_false] at hc
-  cases hc with
-  | inl hc =>
-    rw [hc]
-    simp [Column.size]
-  | inr hc =>
-    rw [hc]
-    simp [Column.size, HashMap.size_valuesArray]
+  simp [Array.Pairwise, Column.size, HashMap.size_valuesArray]
 
 end wfColumnSize
 
@@ -300,9 +303,18 @@ theorem renameColumn_eq_of_not_hasColumn (self : Raw) (oldName newName : String)
 
 section schema
 
-theorem ofColumns_schema (columns : Array Column) (nrows : Nat) :
-    (ofColumns columns nrows).schema = Schema.ofSpecs (columns.map Column.spec) := by
-  simp [Raw.ofColumns, Raw.schema, Schema.ofSpecs, Column.spec]
+theorem default_schema : (default : Raw).schema = (default : Schema) := by
+  simp [default]
+
+theorem ofColumns_schema (columns : Array Column) :
+    (ofColumns columns).schema = Schema.ofSpecs (columns.map Column.spec) := by
+  unfold ofColumns
+  split
+  next => simp [Raw.schema, Schema.ofSpecs, Column.spec]
+  next h =>
+    have eq : columns = #[] := by grind
+    simp only [default_schema, Schema.ofSpecs, eq, List.map_toArray, List.map_nil, Schema.ext_iff]
+    rfl
 
 theorem selectColumns_schema (self : Raw) (ns : Array (Fin self.ncols)) :
     (selectColumns self ns).schema = Schema.ofSpecs (ns.map fun i => (self.getColumn i.val i.isLt).spec) := by
@@ -343,12 +355,12 @@ theorem ofRows_schema (schema : Schema) (rows : Array Row) (h : ∀ row ∈ rows
 
 theorem addColumn_schema (self : Raw) (column : Column) :
     (addColumn self column).schema = self.schema.push column.spec := by
-  simp [Raw.addColumn, Raw.schema, Schema.push, Column.spec]
+  simp [Raw.addColumn, Raw.schema, Schema.push, Schema.ofSpecs, Column.spec]
 
 theorem buildColumn_schema {α} [DataType.OfType α] (self : Raw) (name : String) (f : Row → Option α)
     (h : self.WfColumnSize) :
     (buildColumn self name f h).schema = self.schema.push (name, DataType.OfType.dataType α) := by
-  simp [Raw.buildColumn, Raw.addColumn, Raw.schema, Column.ofRawValues, Schema.push]
+  simp [Raw.buildColumn, Raw.addColumn, Raw.schema, Column.ofRawValues, Schema.push, Schema.ofSpecs]
 
 theorem replaceColumn_schema (self : Raw) (column : Column) :
     (replaceColumn self column).schema = self.schema.replace column.name column.dataType :=
@@ -356,7 +368,7 @@ theorem replaceColumn_schema (self : Raw) (column : Column) :
     dsimp only [Raw.replaceColumn, Raw.schema, Schema.replace]
     refine Array.ext ?_ ?_
     · simp [Array.size_map]
-    · grind only [= getElem_map])
+    · grind only [= getElem_map, = Schema.ofSpecs_specs])
 
 theorem transformColumn_schema {α} [DataType.OfType α] (self : Raw) (colName : String) (hcol : self.hasColumn colName)
     (f : Option ((getColumnByName self colName hcol).dataType.toType) → Option α) :
@@ -477,13 +489,11 @@ theorem wfColumnNames_empty (schema : Schema) (hwf : schema.Wf) : (empty schema)
 theorem wfColumnNames_default : (default : Raw).WfColumnNames :=
   wfColumnNames_empty default (Schema.wf_default)
 
-theorem wfColumnNames_ofColumns (columns : Array Column) (nrows : Nat)
-    (hwf : ∀ (i j : Fin columns.size), i ≠ j → columns[i].name ≠ columns[j].name) :
-    (ofColumns columns nrows).WfColumnNames := by
-  rw [wfColumnNames_iff_schema_wf, ofColumns_schema]
-  intro i j ne
-  simpa only [Schema.ofSpecs_getName, getElem_map, Column.spec] using
-    hwf ⟨i, by simpa using i.isLt⟩ ⟨j, by simpa using j.isLt⟩ (by grind)
+theorem wfColumnNames_ofColumns (columns : Array Column)
+    (hnames : columns.Pairwise (fun x y => x.name ≠ y.name)) :
+    (ofColumns columns).WfColumnNames := by
+  rw [wfColumnNames_iff_schema_wf, ofColumns_schema, Schema.wf_iff_pairwise, Schema.ofSpecs_specs]
+  simpa [Array.size_map, Array.pairwise_iff_getElem, Column.spec] using hnames
 
 @[simp, grind =]
 theorem selectColumns_ncols (self : Raw) (ns : Array (Fin self.ncols)) :
@@ -499,11 +509,14 @@ theorem wfColumnNames_selectColumns (self : Raw) (ns : Array (Fin self.ncols))
     (hwf : self.WfColumnNames)
     (hinj : ns.Nodup) :
     (selectColumns self ns).WfColumnNames := by
-  intro i j ne
+  intro i j lt
   have hi : i < ns.size := by grind
   have hj : j < ns.size := by grind
   rw [selectColumns_getColumn self ns i hi, selectColumns_getColumn self ns j hj]
-  exact hwf ns[i] ns[j] (hinj i j hi hj (Fin.val_ne_of_ne ne))
+  rw [Array.Nodup, Array.pairwise_iff_getElem] at hinj
+  cases Nat.lt_or_gt_of_ne (Fin.val_ne_of_ne (hinj i j hi hj lt)) with
+  | inl lt => exact hwf ns[i] ns[j] lt
+  | inr gt => exact (hwf ns[j] ns[i] gt).symm
 
 theorem wfColumnNames_selectColumnsByMask (self : Raw) (mask : Vector Bool self.ncols)
     (hwf : self.WfColumnNames) :
@@ -526,11 +539,12 @@ theorem wfColumnNames_selectColumnsByName (self : Raw) (names : Array String)
     (h : ∀ name ∈ names, self.hasColumn name)
     (hdupfree : names.Nodup) :
     (selectColumnsByName self names h).WfColumnNames := by
-  intro i j ne
+  intro i j lt
   have hi : i < names.size := by grind
   have hj : j < names.size := by grind
   rw [selectColumnsByName_getColumn_name self names h i.val hi, selectColumnsByName_getColumn_name self names h j.val hj]
-  exact hdupfree i j hi hj (Fin.val_ne_of_ne ne)
+  rw [Array.Nodup, Array.pairwise_iff_getElem] at hdupfree
+  exact hdupfree i j hi hj lt
 
 theorem wfColumnNames_take (self : Raw) (n : Nat) (hwf : self.WfColumnNames) :
     (take self n).WfColumnNames := by
