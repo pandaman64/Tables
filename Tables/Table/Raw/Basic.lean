@@ -117,6 +117,12 @@ theorem schema_getDataType_eq_getColumn_dataType {self : Raw} (i : Nat) (h : i <
 def hasColumn (self : Raw) (name : String) : Bool :=
   self.columns.any (·.name = name)
 
+theorem hasColumn_iff_mem_schema_specs (self : Raw) (name : String) :
+    self.hasColumn name ↔ ∃ dataType, (name, dataType) ∈ self.schema.specs := by
+  simp only [hasColumn, Array.any_eq_true, decide_eq_true_eq, schema, Array.mem_iff_getElem,
+    Array.getElem_map, Prod.mk.injEq, Array.size_map]
+  grind
+
 def findColumnIdx? (self : Raw) (name : String) : Option Nat :=
   self.columns.findIdx? (·.name = name)
 

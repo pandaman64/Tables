@@ -130,6 +130,28 @@ def studentsGrades : Table :=
 
 #eval studentsGrades.toFormat
 
+def studentsByAgeAsc : Table :=
+  students.tsort "age" .ascending (by native_decide)
+
+#eval studentsByAgeAsc.toFormat
+
+def employeesByDeptIdAsc : Table :=
+  employees.tsort "Department ID" .ascending (by native_decide)
+
+-- nulls first
+#eval employeesByDeptIdAsc.toFormat
+
+def studentsByAgeAscThenNameDesc : Table :=
+  let keys : Array (String × Order) := #[("age", .ascending), ("name", .descending)]
+  students.sortByColumns keys (by
+    intro key hk
+    simp [keys] at hk
+    rcases hk with rfl | rfl
+    · native_decide
+    · native_decide)
+
+#eval studentsByAgeAscThenNameDesc.toFormat
+
 end Tables.Examples
 
 end

@@ -50,6 +50,9 @@ def getCell? (self : Row) (i : Nat) : Option Cell :=
 def hasCell (self : Row) (name : String) : Bool :=
   self.cells.any (·.name = name)
 
+def hasNameAndDataType (self : Row) (name : String) (dataType : DataType) : Bool :=
+  self.cells.any (fun cell => cell.name = name ∧ cell.dataType = dataType)
+
 /--
 TableAPI: getValue
 -/
@@ -63,6 +66,16 @@ def getCellByName (self : Row) (name : String) (h : self.hasCell name) : Cell :=
   have isSome : (self.cells.find? (·.name = name)).isSome := by
     grind [hasCell]
   (self.getCellByName? name).get isSome
+
+def getValueByNameAndDataType (self : Row) (name : String) (dataType : DataType) (h : self.hasNameAndDataType name dataType) : Option dataType.toType :=
+  let found := self.cells.find? (fun cell => cell.name = name ∧ cell.dataType = dataType)
+  match hf : found with
+  | some cell =>
+    have : cell.dataType = dataType := by grind
+    this ▸ cell.value
+  | none =>
+    have : False := by grind [hasNameAndDataType]
+    this.elim
 
 def concat (self other : Row) : Row :=
   { cells := self.cells ++ other.cells }

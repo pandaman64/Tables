@@ -3,6 +3,7 @@ module
 public import Tables.Table.Raw
 public import Tables.Error
 
+import Tables.Table.Raw.Sort
 import Init.Data.Array.Find
 import Init.Data.Array.Lemmas
 
@@ -458,6 +459,34 @@ def distinct (self : Table) : Table :=
     wfColumnSize := wfColumnSize_distinct self.raw self.wfColumnSize
     wfColumnNames := wfColumnNames_distinct self.raw self.wfColumnSize self.wfColumnNames
   }
+
+def tsort (self : Table) (key : String) (order : Order) (h : self.hasColumn key) : Table :=
+  {
+    raw := self.raw.tsort key order h self.wfColumnSize
+    wfColumnSize := wfColumnSize_tsort self.raw key order h self.wfColumnSize
+    wfColumnNames := wfColumnNames_tsort self.raw key order h self.wfColumnSize self.wfColumnNames
+  }
+
+def tsort? (self : Table) (key : String) (order : Order) : Except Error Table :=
+  if h : self.hasColumn key then
+    .ok (self.tsort key order h)
+  else
+    .error (.columnNotFound key)
+
+def sortByColumns (self : Table) (keys : Array (String × Order))
+    (h : ∀ key ∈ keys, self.hasColumn key.1) : Table :=
+  {
+    raw := self.raw.sortByColumns keys h self.wfColumnSize
+    wfColumnSize := wfColumnSize_sortByColumns self.raw keys h self.wfColumnSize
+    wfColumnNames := wfColumnNames_sortByColumns self.raw keys h self.wfColumnSize self.wfColumnNames
+  }
+
+def sortByColumns? (self : Table) (keys : Array (String × Order)) : Except Error Table :=
+  if h : ∀ key ∈ keys, self.hasColumn key.1 then
+    .ok (self.sortByColumns keys h)
+  else
+    let firstMissing? := keys.find? (fun key => ¬ self.hasColumn key.1)
+    .error (.columnNotFound (firstMissing?.map (fun key => key.1) |>.getD ""))
 
 def crossJoin (self other : Table)
     (hdisjoint :
