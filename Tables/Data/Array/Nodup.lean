@@ -20,6 +20,18 @@ def Nodup {α} (a : Array α) : Prop :=
 
 namespace Nodup
 
+abbrev Nodup' {α} (a : Array α) : Prop :=
+  ∀ i j : Fin a.size, i ≠ j → a[i] ≠ a[j]
+
+theorem iff_nodup' {α} (a : Array α) : Nodup a ↔ Nodup' a := by
+  apply Iff.intro
+  . grind [Nodup]
+  . intro h i j hi hj ne
+    exact h ⟨i, hi⟩ ⟨j, hj⟩ (by grind)
+
+instance {α} [DecidableEq α] {a : Array α}: Decidable (Nodup a) :=
+  decidable_of_iff' (Nodup' a) (iff_nodup' a)
+
 theorem empty {α} : Nodup (@empty α) := by
   intro i j hi hj ne
   exact (Nat.not_lt_zero i hi).elim
