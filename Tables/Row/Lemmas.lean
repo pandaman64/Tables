@@ -48,6 +48,30 @@ theorem hasNameAndDataType_iff_getName_getDataType (self : Row) (name : String) 
     decide_eq_true_eq, getName, getDataType]
   rfl
 
+theorem findCellIdx_lt_of_hasCell (self : Row) (name : String) (h : self.hasCell name) :
+    self.findCellIdx name < self.size := by
+  unfold hasCell at h
+  unfold findCellIdx size
+  rw [Array.findIdx_lt_size]
+  grind
+
+theorem findCellIdx_eq_of_not_hasCell (self : Row) (name : String) (h : ¬self.hasCell name) :
+    self.findCellIdx name = self.size := by
+  simp only [hasCell, Array.any_eq_true, decide_eq_true_eq, not_exists] at h
+  simp only [findCellIdx, size, Array.findIdx_eq_size, Array.mem_iff_getElem,
+    decide_eq_false_iff_not, forall_exists_index]
+  grind
+
+@[grind =]
+theorem upsertCell_eq (self : Row) (cell : Cell) :
+    self.upsertCell cell = if h : self.hasCell cell.name then
+      self.setCell (self.findCellIdx cell.name) cell (self.findCellIdx_lt_of_hasCell cell.name h)
+    else
+      self.pushCell cell := by
+  split
+  next h => simp [upsertCell, self.findCellIdx_lt_of_hasCell cell.name h]
+  next h => simp [upsertCell, self.findCellIdx_eq_of_not_hasCell cell.name h]
+
 end Tables.Row
 
 end

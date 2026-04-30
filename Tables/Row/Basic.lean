@@ -50,6 +50,15 @@ def getCell? (self : Row) (i : Nat) : Option Cell :=
 def hasCell (self : Row) (name : String) : Bool :=
   self.cells.any (·.name = name)
 
+def findCellIdx (self : Row) (name : String) : Nat :=
+  self.cells.findIdx (·.name = name)
+
+def pushCell (self : Row) (cell : Cell) : Row :=
+  { cells := self.cells.push cell }
+
+def setCell (self : Row) (i : Nat) (cell : Cell) (h : i < self.size := by get_elem_tactic) : Row :=
+  { cells := self.cells.set i cell }
+
 def hasNameAndDataType (self : Row) (name : String) (dataType : DataType) : Bool :=
   self.cells.any (fun cell => cell.name = name ∧ cell.dataType = dataType)
 
@@ -88,6 +97,16 @@ def selectByNames (self : Row) (names : Array String) : Row :=
 
 def selectNotByNames (self : Row) (names : Array String) : Row :=
   { cells := self.cells.filter fun cell => cell.name ∉ names }
+
+def upsertCell (self : Row) (cell : Cell) : Row :=
+  let idx := self.findCellIdx cell.name
+  if h : idx < self.size then
+    self.setCell idx cell h
+  else
+    self.pushCell cell
+
+def upsert (self other : Row) : Row :=
+  other.cells.foldl (init := self) upsertCell
 
 end Row
 

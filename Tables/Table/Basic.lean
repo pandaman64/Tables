@@ -441,14 +441,14 @@ def count (self : Table) (column : String) (h : self.hasColumn column) : Table :
     wfColumnNames := wfColumnNames_count self.raw column h
   }
 
-def find (self : Table) (r : Row) : Option Nat :=
-  self.raw.find r self.wfColumnSize
-
 def count? (self : Table) (column : String) : Except Error Table :=
   if h : self.hasColumn column then
     .ok (self.count column h)
   else
     .error (.columnNotFound column)
+
+def find (self : Table) (r : Row) : Option Nat :=
+  self.raw.find r self.wfColumnSize
 
 def bin? (self : Table) (column : String) (n : Nat) : Except Error Table :=
   match h : self.raw.bin? column n with
@@ -459,6 +459,12 @@ def bin? (self : Table) (column : String) (n : Nat) : Except Error Table :=
       wfColumnNames := wfColumnNames_bin? self.raw result column n h
     }
   | .error error => .error error
+
+-- It seems hard to provide a safe version without a dependent Row type.
+def update? (self : Table) (f : Row → Row) : Except Error Table :=
+  let rows := Nat.fold (init := #[]) self.nrows fun i isLt rows =>
+    rows.push (f (self.getRow i isLt))
+  ofRows? rows
 
 def toString (self : Table) : String :=
   self.raw.toString
