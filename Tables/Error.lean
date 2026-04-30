@@ -14,6 +14,9 @@ inductive Error where
   | mismatchedSchema (expected : Schema) (actual : Schema)
   | overlappingColumnName (name : String)
   | schemaNotWellFormed
+  | dataTypeNotSupported (dataType : DataType)
+  | emptyColumn (name : String)
+  | invalidArgument (message : String)
 deriving Repr, DecidableEq
 
 end Tables

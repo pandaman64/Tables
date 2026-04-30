@@ -450,6 +450,16 @@ def count? (self : Table) (column : String) : Except Error Table :=
   else
     .error (.columnNotFound column)
 
+def bin? (self : Table) (column : String) (n : Nat) : Except Error Table :=
+  match h : self.raw.bin? column n with
+  | .ok result =>
+    .ok {
+      raw := result
+      wfColumnSize := wfColumnSize_bin? self.raw result column n h
+      wfColumnNames := wfColumnNames_bin? self.raw result column n h
+    }
+  | .error error => .error error
+
 def toString (self : Table) : String :=
   self.raw.toString
 

@@ -290,6 +290,20 @@ theorem wfColumnSize_count
   apply wfColumnSize_ofColumns
   simp [Array.Pairwise, Column.size, HashMap.size_valuesArray]
 
+theorem wfColumnSize_bin? (self result : Raw) (column : String) (n : Nat)
+    (h : bin? self column n = .ok result) :
+    result.WfColumnSize := by
+  unfold bin? at h
+  split at h <;> try contradiction
+  split at h <;> try contradiction
+  split at h <;> try contradiction
+  dsimp at h
+  split at h <;> try contradiction
+  simp only [pure, Except.pure, Except.ok.injEq] at h
+  rw [←h]
+  apply wfColumnSize_ofColumns
+  simp [Array.Pairwise, Column.size, HashMap.size_valuesArray]
+
 end wfColumnSize
 
 @[grind =]
@@ -467,6 +481,19 @@ theorem count_schema (self : Raw) (column : String) (h : self.hasColumn column) 
     (count self column h).schema = Schema.ofSpecs #[("value", (self.getColumnByName column h).dataType), ("count", DataType.nat)] := by
   unfold Raw.count Raw.ofColumns
   simp [Raw.schema, Schema.ofSpecs]
+
+theorem bin?_schema (self result : Raw) (column : String) (n : Nat)
+    (h : bin? self column n = .ok result) :
+    result.schema = Schema.ofSpecs #[("group", DataType.string), ("count", DataType.nat)] := by
+  unfold bin? at h
+  split at h <;> try contradiction
+  split at h <;> try contradiction
+  split at h <;> try contradiction
+  dsimp at h
+  split at h <;> try contradiction
+  simp only [pure, Except.pure, Except.ok.injEq] at h
+  rw [←h]
+  simp [Raw.schema, Raw.ofColumns, Schema.ofSpecs]
 
 end schema
 
@@ -686,6 +713,13 @@ theorem wfColumnNames_count (self : Raw) (column : String) (h : self.hasColumn c
     (count self column h).WfColumnNames := by
   rw [wfColumnNames_iff_schema_wf (count self column h)]
   rw [count_schema]
+  intro i j ne
+  grind
+
+theorem wfColumnNames_bin? (self result : Raw) (column : String) (n : Nat)
+    (h : bin? self column n = .ok result) :
+    result.WfColumnNames := by
+  rw [wfColumnNames_iff_schema_wf result, bin?_schema self result column n h]
   intro i j ne
   grind
 

@@ -363,6 +363,36 @@ def find (self : Raw) (r : Row) (h : self.WfColumnSize) : Option Nat := Id.run d
       return some i
   none
 
+def bin? (self : Raw) (column : String) (n : Nat) : Except Error Raw := do
+  if n = 0 then
+    throw (.invalidArgument "n must be positive")
+  else
+    let some column := self.getColumnByName? column
+      | throw (.columnNotFound column)
+    match h : column.dataType with
+    | .nat =>
+      have eqType : column.dataType.toType = Nat := by simp [h]
+      let values : Array Nat := column.values.filterMap fun v => eqType ▸ v
+      if h : values.isEmpty then
+        throw (.emptyColumn column.name)
+      else
+        let min := values.min (by grind)
+        let max := values.max (by grind)
+        let start := min / n * n
+        let numGroups := (max - start) / n + 1
+        let map : HashMap Nat Nat := values.foldl (init := ∅) fun map value =>
+          let key := (value - start) / n
+          map.alter key fun
+            | some count => some (count + 1)
+            | none => some 1
+        let values := map.keysArray
+        let counts := map.valuesArray
+        pure (Raw.ofColumns #[
+          { name := "group", dataType := DataType.string, values := values.map fun i => s!"{start + i * n} <= {column.name} < {start + (i + 1) * n}" },
+          { name := "count", dataType := DataType.nat, values := counts.map some },
+        ])
+    | _ => throw (.dataTypeNotSupported column.dataType)
+
 def toString (self : Raw) : String := Id.run do
   let columns := self.columns.map fun column =>
     #[column.name] ++ column.values.map fun
