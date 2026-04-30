@@ -418,24 +418,18 @@ theorem tfilter_schema (self : Raw) (p : Row → Bool) (h : self.WfColumnSize) :
   simp [Raw.tfilter, ofRows_schema]
 
 theorem dropColumn_schema (self : Raw) (name : String) :
-    (dropColumn self name).schema = self.schema.filter fun x => x.fst ≠ name :=
+    (dropColumn self name).schema = self.schema.filterByName (· ≠ name) :=
   Schema.ext (by
-    dsimp only [Raw.dropColumn, Raw.schema, Schema.filter]
-    exact Eq.symm <|
-      @Array.filter_map _ _
-        (fun x : String × DataType => decide (x.fst ≠ name))
-        (fun column : Column => (column.name, column.dataType))
-        self.columns)
+    dsimp only [Raw.dropColumn, Raw.schema, Schema.filterByName]
+    rw [Array.filter_map, Schema.ofSpecs_specs]
+    congr)
 
 theorem dropColumns_schema (self : Raw) (names : Array String) :
-    (dropColumns self names).schema = self.schema.filter fun x => x.fst ∉ names :=
+    (dropColumns self names).schema = self.schema.filterByName (· ∉ names) :=
   Schema.ext (by
-    dsimp only [Raw.dropColumns, Raw.schema, Schema.filter]
-    exact Eq.symm <|
-      @Array.filter_map _ _
-        (fun x : String × DataType => decide ¬x.fst ∈ names)
-        (fun column : Column => (column.name, column.dataType))
-        self.columns)
+    dsimp only [Raw.dropColumns, Raw.schema, Schema.filterByName]
+    rw [Array.filter_map, Schema.ofSpecs_specs]
+    congr)
 
 theorem hcat_schema (self other : Raw) :
     (hcat self other).schema = self.schema ++ other.schema := by
@@ -660,15 +654,13 @@ theorem wfColumnNames_tfilter (self : Raw) (p : Row → Bool) (h : self.WfColumn
 
 theorem wfColumnNames_dropColumn (self : Raw) (name : String) (hwf : self.WfColumnNames) :
     (dropColumn self name).WfColumnNames := by
-  rw [wfColumnNames_iff_schema_wf (dropColumn self name)]
-  rw [dropColumn_schema]
-  exact Schema.wf_filter ((wfColumnNames_iff_schema_wf self).mp hwf)
+  rw [wfColumnNames_iff_schema_wf (dropColumn self name), dropColumn_schema]
+  exact Schema.wf_filterByName ((wfColumnNames_iff_schema_wf self).mp hwf)
 
 theorem wfColumnNames_dropColumns (self : Raw) (names : Array String) (hwf : self.WfColumnNames) :
     (dropColumns self names).WfColumnNames := by
-  rw [wfColumnNames_iff_schema_wf (dropColumns self names)]
-  rw [dropColumns_schema]
-  exact Schema.wf_filter ((wfColumnNames_iff_schema_wf self).mp hwf)
+  rw [wfColumnNames_iff_schema_wf (dropColumns self names), dropColumns_schema]
+  exact Schema.wf_filterByName ((wfColumnNames_iff_schema_wf self).mp hwf)
 
 theorem wfColumnNames_vcat (self other : Raw) (hschema : self.schema = other.schema)
     (hwf : self.WfColumnNames) :
@@ -751,6 +743,142 @@ theorem wfColumnNames_bin? (self result : Raw) (column : String) (n : Nat)
   grind
 
 end wfColumnNames
+
+section hasColumn
+
+theorem hasColumn_selectColumns_iff (self : Raw) (ns : Array (Fin self.ncols)) (name : String) :
+    (self.selectColumns ns).hasColumn name ↔ ∃ i ∈ ns, (self.getColumn i.val i.isLt).name = name := by
+  grind [hasColumn, selectColumns, Array.mem_iff_getElem]
+
+theorem hasColumn_selectColumnsByMask_iff (self : Raw) (mask : Vector Bool self.ncols) (name : String) :
+    (self.selectColumnsByMask mask).hasColumn name ↔ ∃ (i : Nat) (h : i < self.ncols), mask[i] = true ∧ (self.getColumn i h).name = name := by
+  dsimp [selectColumnsByMask]
+  simp only [hasColumn_selectColumns_iff, mem_filter]
+  simp only [mem_iff_getElem, getElem_finRange, Fin.cast_mk, size_finRange]
+  grind
+
+theorem hasColumn_selectColumnsByName_iff (self : Raw) (names : Array String)
+    (h : ∀ name ∈ names, self.hasColumn name) (name : String) :
+    (self.selectColumnsByName names h).hasColumn name ↔ name ∈ names := by
+  rw [hasColumn_iff_schema_hasName, selectColumnsByName_schema, Schema.ofSpecs_hasName_iff]
+  grind [Column.spec, getColumnByName_name, mem_iff_getElem]
+
+theorem hasColumn_take_iff (self : Raw) (n : Nat) (name : String) :
+    (self.take n).hasColumn name ↔ self.hasColumn name := by
+  simp [Raw.hasColumn_iff_schema_hasName, take_schema]
+
+theorem hasColumn_addRow_iff (self : Raw) (row : Row) (h : row.schema = self.schema) (name : String) :
+    (self.addRow row h).hasColumn name ↔ self.hasColumn name := by
+  simp [Raw.hasColumn_iff_schema_hasName, addRow_schema]
+
+theorem hasColumn_addRows_iff (self : Raw) (rows : Array Row)
+    (h : ∀ row ∈ rows, row.schema = self.schema) (name : String) :
+    (self.addRows rows h).hasColumn name ↔ self.hasColumn name := by
+  simp [Raw.hasColumn_iff_schema_hasName, addRows_schema]
+
+theorem hasColumn_ofRows_iff (schema : Schema) (rows : Array Row)
+    (h : ∀ row ∈ rows, row.schema = schema) (name : String) :
+    (Raw.ofRows schema rows h).hasColumn name ↔ schema.hasName name := by
+  simp [Raw.hasColumn_iff_schema_hasName, ofRows_schema]
+
+theorem hasColumn_addColumn_iff (self : Raw) (column : Column) (name : String) :
+    (self.addColumn column).hasColumn name ↔ self.hasColumn name ∨ column.name = name := by
+  simp [Raw.hasColumn_iff_schema_hasName, addColumn_schema, Column.spec]
+
+theorem hasColumn_buildColumn_iff {α} [DataType.OfType α] (self : Raw) (colName : String)
+    (f : Row → Option α) (h : self.WfColumnSize) (name : String) :
+    (self.buildColumn colName f h).hasColumn name ↔ self.hasColumn name ∨ colName = name := by
+  simp [Raw.hasColumn_iff_schema_hasName, buildColumn_schema, Schema.push_hasName_iff]
+
+theorem hasColumn_replaceColumn_iff (self : Raw) (column : Column) (name : String) :
+    (self.replaceColumn column).hasColumn name ↔ self.hasColumn name := by
+  simp [Raw.hasColumn_iff_schema_hasName, replaceColumn_schema]
+
+theorem hasColumn_transformColumn_iff {α} [DataType.OfType α] (self : Raw) (colName : String) (hcol : self.hasColumn colName)
+    (f : Option ((self.getColumnByName colName hcol).dataType.toType) → Option α) (name : String) :
+    (self.transformColumn colName hcol f).hasColumn name ↔ self.hasColumn name := by
+  simp [Raw.hasColumn_iff_schema_hasName, transformColumn_schema]
+
+theorem hasColumn_selectRows_iff (self : Raw) (ns : Array (Fin self.nrows)) (h : self.WfColumnSize) (name : String) :
+    (self.selectRows ns h).hasColumn name ↔ self.hasColumn name := by
+  simp [Raw.hasColumn_iff_schema_hasName, selectRows_schema]
+
+theorem hasColumn_selectRowsByMask_iff (self : Raw) (mask : Vector Bool self.nrows) (h : self.WfColumnSize) (name : String) :
+    (self.selectRowsByMask mask h).hasColumn name ↔ self.hasColumn name := by
+  simp [Raw.hasColumn_iff_schema_hasName, selectRowsByMask_schema]
+
+theorem hasColumn_tfilter_iff (self : Raw) (p : Row → Bool) (h : self.WfColumnSize) (name : String) :
+    (self.tfilter p h).hasColumn name ↔ self.hasColumn name := by
+  simp [Raw.hasColumn_iff_schema_hasName, tfilter_schema]
+
+theorem hasColumn_dropColumn_iff (self : Raw) (colName : String) (name : String) :
+    (self.dropColumn colName).hasColumn name ↔ self.hasColumn name ∧ name ≠ colName := by
+  simp [Raw.hasColumn_iff_schema_hasName, dropColumn_schema, Schema.filterByName_hasName_iff]
+
+theorem hasColumn_dropColumns_iff (self : Raw) (names : Array String) (name : String) :
+    (self.dropColumns names).hasColumn name ↔ self.hasColumn name ∧ name ∉ names := by
+  simp [Raw.hasColumn_iff_schema_hasName, dropColumns_schema, Schema.filterByName_hasName_iff]
+
+theorem hasColumn_vcat_iff (self other : Raw) (h : self.schema = other.schema) (name : String) :
+    (self.vcat other h).hasColumn name ↔ self.hasColumn name := by
+  simp [Raw.hasColumn_iff_schema_hasName, vcat_schema]
+
+theorem hasColumn_hcat_iff (self other : Raw) (name : String) :
+    (self.hcat other).hasColumn name ↔ self.hasColumn name ∨ other.hasColumn name := by
+  simp [Raw.hasColumn_iff_schema_hasName, hcat_schema, Schema.concat_hasName_iff]
+
+theorem hasColumn_renameColumn_oldName_iff (self : Raw) {oldName newName : String} :
+    (self.renameColumn oldName newName).hasColumn oldName ↔ oldName = newName ∧ self.hasColumn oldName := by
+  simp [Raw.hasColumn_iff_schema_hasName, renameColumn_schema, Schema.rename_not_hasName_oldName_iff]
+
+theorem hasColumn_renameColumn_newName_iff (self : Raw) (oldName newName : String) :
+    (self.renameColumn oldName newName).hasColumn newName ↔ self.hasColumn newName ∨ self.hasColumn oldName := by
+  simp [Raw.hasColumn_iff_schema_hasName, renameColumn_schema, Schema.rename_hasName_newName_iff]
+
+theorem hasColumn_renameColumn_of_ne_iff (self : Raw) {oldName newName name : String}
+    (h₁ : name ≠ oldName) (h₂ : name ≠ newName) :
+    (self.renameColumn oldName newName).hasColumn name ↔ self.hasColumn name := by
+  simp [Raw.hasColumn_iff_schema_hasName, renameColumn_schema, Schema.rename_hasName_iff_of_ne, h₁, h₂]
+
+theorem hasColumn_renameColumns_iff (self : Raw) (renames : Array (String × String)) (name : String) :
+    (self.renameColumns renames).hasColumn name ↔ (renames.foldl (init := self) fun t r => t.renameColumn r.1 r.2).hasColumn name := by
+  rfl
+
+theorem hasColumn_select_iff (self : Raw) (schema' : Schema)
+    (f : Row → (n : Nat) → n < self.nrows → Row)
+    (h₁ : ∀ row n h, (f row n h).schema = schema') (h₂ : self.WfColumnSize) (name : String) :
+    (self.select schema' f h₁ h₂).hasColumn name ↔ schema'.hasName name := by
+  simp [Raw.hasColumn_iff_schema_hasName, select_schema]
+
+theorem hasColumn_selectMany_iff {α} (self : Raw) (schema' : Schema)
+    (project : Row → (n : Nat) → n < self.nrows → Array α)
+    (result : Row → α → Row)
+    (h₁ : ∀ row a, (result row a).schema = schema')
+    (h₂ : self.WfColumnSize) (name : String) :
+    (self.selectMany schema' project result h₁ h₂).hasColumn name ↔ schema'.hasName name := by
+  simp [Raw.hasColumn_iff_schema_hasName, selectMany_schema]
+
+theorem hasColumn_dropna_iff (self : Raw) (h : self.WfColumnSize) (name : String) :
+    (dropna self h).hasColumn name ↔ self.hasColumn name := by
+  simp [Raw.hasColumn_iff_schema_hasName, dropna_schema]
+
+theorem hasColumn_fillna_iff (self : Raw) (column : String) (h₁ : self.hasColumn column)
+    (replacement : (self.getColumnByName column h₁).dataType.toType) (name : String) :
+    (self.fillna column h₁ replacement).hasColumn name ↔ self.hasColumn name := by
+  apply hasColumn_replaceColumn_iff
+
+theorem hasColumn_count_iff (self : Raw) (column : String) (h : self.hasColumn column) (name : String) :
+    (self.count column h).hasColumn name ↔ name = "value" ∨ name = "count" := by
+  rw [Raw.hasColumn_iff_schema_hasName, count_schema, Schema.ofSpecs_hasName_iff]
+  grind
+
+theorem hasColumn_bin?_iff (self result : Raw) (column : String) (n : Nat) (name : String)
+    (h : bin? self column n = .ok result) :
+    result.hasColumn name ↔ name = "group" ∨ name = "count" := by
+  rw [Raw.hasColumn_iff_schema_hasName, bin?_schema self result column n h, Schema.ofSpecs_hasName_iff]
+  grind
+
+end hasColumn
 
 end Tables.Table.Raw
 

@@ -38,7 +38,7 @@ theorem append_schema (self other : Row) : (self ++ other).schema = self.schema 
 
 @[simp, grind =]
 theorem selectNotByNames_schema (self : Row) (names : Array String) : (self.selectNotByNames names).schema = self.schema.selectNotByNames names := by
-  simp [schema, selectNotByNames, Schema.selectNotByNames, Schema.filter, Schema.ofSpecs, Array.filter_map, Function.comp_def, -Array.size_map]
+  simp [schema, selectNotByNames, Schema.selectNotByNames, Schema.filterByName, Schema.ofSpecs, Array.filter_map, Function.comp_def, -Array.size_map]
 
 @[grind =]
 theorem hasNameAndDataType_iff_mem_schema (self : Row) (name : String) (dataType : DataType) :

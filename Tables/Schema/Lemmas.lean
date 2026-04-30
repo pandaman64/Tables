@@ -17,7 +17,6 @@ namespace Schema
 theorem append_def (self other : Schema) :
     self ++ other = { specs := self.specs ++ other.specs } := (rfl)
 
-@[simp, grind =]
 theorem size_eq (self : Schema) : self.specs.size = self.size := (rfl)
 
 @[simp, grind =]
@@ -45,12 +44,12 @@ theorem ofSpecs_getDataType (specs : Array (String × DataType)) (i : Nat) (h : 
 @[simp, grind =]
 theorem replace_size (self : Schema) (name : String) (dataType : DataType) :
     (self.replace name dataType).size = self.size := by
-  simp [replace]
+  simp [replace, size_eq]
 
 @[simp, grind =]
 theorem rename_size (self : Schema) (oldName newName : String) :
     (self.rename oldName newName).size = self.size := by
-  simp [rename]
+  simp [rename, size_eq]
 
 @[simp, grind =]
 theorem rename_getName (self : Schema) (oldName newName : String) (i : Nat) (hi : i < self.size) :
@@ -96,6 +95,16 @@ theorem rename_hasName_iff_of_ne {schema : Schema} {oldName newName name : Strin
     (schema.rename oldName newName).hasName name ↔ schema.hasName name := by
   grind [rename, hasName]
 
+@[simp, grind =]
+theorem filterByName_hasName_iff {schema : Schema} {p : String → Bool} {name : String} :
+    (schema.filterByName p).hasName name ↔ schema.hasName name ∧ p name = true := by
+  grind [hasName, filterByName, ofSpecs_specs, Array.any_filter']
+
+@[simp, grind =]
+theorem selectNotByNames_hasName_iff {schema : Schema} {names : Array String} {name : String} :
+    (schema.selectNotByNames names).hasName name ↔ schema.hasName name ∧ name ∉ names := by
+  simp [selectNotByNames, filterByName_hasName_iff]
+
 theorem wf_default : (default : Schema).Wf := by decide
 
 theorem wf_replace {schema : Schema} {name : String} {dataType : DataType}
@@ -123,10 +132,10 @@ theorem wf_iff_pairwise {schema : Schema} :
     schema.Wf ↔ schema.specs.Pairwise fun x y => x.1 ≠ y.1 :=
   ⟨pairwise_of_wf, wf_of_pairwise⟩
 
-theorem wf_filter {schema : Schema} {p : String × DataType → Bool}
-    (hwf : schema.Wf) : (schema.filter p).Wf := by
-  dsimp only [Schema.filter]
-  exact wf_of_pairwise (Array.Pairwise.filter p (pairwise_of_wf hwf))
+theorem wf_filterByName {schema : Schema} {p : String → Bool}
+    (hwf : schema.Wf) : (schema.filterByName p).Wf := by
+  dsimp only [filterByName]
+  exact wf_of_pairwise (Array.Pairwise.filter _ (pairwise_of_wf hwf))
 
 theorem wf_push {schema : Schema} {spec : String × DataType}
     (hwf : schema.Wf)

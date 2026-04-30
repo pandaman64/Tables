@@ -43,6 +43,7 @@ def buildJoinMap {α} [BEq α] [Hashable α] (other : Raw) (h : other.WfColumnSi
       | some ns => some (ns.push ⟨i, isLt⟩)
       | none => some #[⟨i, isLt⟩]
 
+-- TODO: should we require the keys to be present in `self`?
 def leftJoin (self other : Raw) (keys : Array String)
     (h₁ : self.WfColumnSize) (h₂ : other.WfColumnSize) : Raw :=
   let otherSchema := other.schema.selectNotByNames keys

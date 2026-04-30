@@ -83,6 +83,10 @@ theorem wfColumnNames_tsort (self : Raw) (key : String) (order : Order)
     (self.tsort key order h₁ h₂).WfColumnNames := by
   simpa [wfColumnNames_iff_schema_wf, tsort_schema] using h₃
 
+theorem tsort_hasColumn_iff (self : Raw) (key : String) (order : Order) (h₁ : self.hasColumn key) (h₂ : self.WfColumnSize) (name : String) :
+    (self.tsort key order h₁ h₂).hasColumn name ↔ self.hasColumn name := by
+  simp [Raw.hasColumn_iff_schema_hasName, tsort_schema]
+
 def sortByColumns (self : Raw) (keys : Array (String × Order))
     (h₁ : ∀ key ∈ keys, self.hasColumn key.1) (h₂ : self.WfColumnSize) : Raw :=
   let table : { table : Raw // table.schema = self.schema ∧ table.WfColumnSize } :=
@@ -115,6 +119,11 @@ theorem wfColumnNames_sortByColumns (self : Raw) (keys : Array (String × Order)
     (h₁ : ∀ key ∈ keys, self.hasColumn key.1) (h₂ : self.WfColumnSize) (h₃ : self.WfColumnNames) :
     (self.sortByColumns keys h₁ h₂).WfColumnNames := by
   simpa [wfColumnNames_iff_schema_wf, sortByColumns_schema] using h₃
+
+theorem sortByColumns_hasColumn_iff (self : Raw) (keys : Array (String × Order))
+    (h₁ : ∀ key ∈ keys, self.hasColumn key.1) (h₂ : self.WfColumnSize) (name : String) :
+    (self.sortByColumns keys h₁ h₂).hasColumn name ↔ self.hasColumn name := by
+  simp [Raw.hasColumn_iff_schema_hasName, sortByColumns_schema]
 
 def orderBy (self : Raw) (comparators : Array Comparator) (h : self.WfColumnSize) : Raw :=
   let compare (r₁ r₂ : Row) : Ordering := Id.run do
@@ -153,6 +162,10 @@ theorem orderBy_schema (self : Raw) (comparators : Array Comparator) (h : self.W
 theorem wfColumnNames_orderBy (self : Raw) (comparators : Array Comparator) (h₁ : self.WfColumnSize) (h₂ : self.WfColumnNames) :
     (self.orderBy comparators h₁).WfColumnNames := by
   simpa [wfColumnNames_iff_schema_wf, orderBy_schema] using h₂
+
+theorem orderBy_hasColumn_iff (self : Raw) (comparators : Array Comparator) (h : self.WfColumnSize) (name : String) :
+    (self.orderBy comparators h).hasColumn name ↔ self.hasColumn name := by
+  simp [Raw.hasColumn_iff_schema_hasName, orderBy_schema]
 
 end Tables.Table.Raw
 

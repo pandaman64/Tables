@@ -58,11 +58,11 @@ def replace (self : Schema) (name : String) (dataType : DataType) : Schema :=
 def rename (self : Schema) (oldName newName : String) : Schema :=
   ofSpecs (self.specs.map fun (n, d) => if n = oldName then (newName, d) else (n, d))
 
-def filter (self : Schema) (p : String × DataType → Bool) : Schema :=
-  ofSpecs (self.specs.filter p)
+def filterByName (self : Schema) (p : String → Bool) : Schema :=
+  ofSpecs (self.specs.filter fun (name, _) => p name)
 
 def selectNotByNames (self : Schema) (names : Array String) : Schema :=
-  self.filter fun (name, _) => name ∉ names
+  self.filterByName fun name => name ∉ names
 
 end Schema
 
