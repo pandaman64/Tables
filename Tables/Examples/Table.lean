@@ -43,6 +43,11 @@ def studentsAgeAvgByFavoriteColor : Table :=
 
 #eval studentsAgeAvgByFavoriteColor.toFormat
 
+def studentsAgeByFavoriteColorWide : Table :=
+  unwrapTable <| students.pivotWider? "name" "age"
+
+#eval studentsAgeByFavoriteColorWide.toFormat
+
 def studentsMissing : Table :=
   unwrapTable <| Table.ofColumns? #[
     Column.ofValues "name" #["Bob", "Alice", "Eve"],
@@ -129,6 +134,19 @@ def gradebook : Table :=
   ]
 
 #eval gradebook.toFormat
+
+def gradebookLonger : Table :=
+  unwrapTable <| gradebook.pivotLonger?
+    #["quiz1", "quiz2", "midterm", "quiz3", "quiz4", "final"]
+    "test"
+    "score"
+
+#eval gradebookLonger.toFormat
+
+def gradebookRoundTrip : Table :=
+  unwrapTable <| gradebookLonger.pivotWider? "test" "score"
+
+#eval gradebookRoundTrip.toFormat
 
 def gradebookMissing : Table :=
   unwrapTable <| Table.ofColumns? #[

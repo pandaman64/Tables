@@ -14,6 +14,12 @@ structure Cell where
   value : Option dataType.toType
 deriving DecidableEq, Hashable
 
+namespace Cell
+
+instance : Inhabited Cell := ⟨{ name := "", dataType := DataType.nat, value := none }⟩
+
+end Cell
+
 structure Row where
   cells : Array Cell
 deriving Inhabited, DecidableEq, Hashable
@@ -96,6 +102,20 @@ def getValueByNameAndDataType (self : Row) (name : String) (dataType : DataType)
   | none =>
     have : False := by grind [hasNameAndDataType]
     this.elim
+
+def getValueByNameAndDataType! (self : Row) (name : String) (dataType : DataType) : Option dataType.toType :=
+  let found := self.cells.find? (fun cell => cell.name = name ∧ cell.dataType = dataType)
+  match hf : found with
+  | some cell =>
+    have : cell.dataType = dataType := by grind
+    this ▸ cell.value
+  | none => panic! s!"{name} not found in row"
+
+def getValueByName? (self : Row) (name : String) : Option ((dt : DataType) × Option dt.toType) :=
+  let found := self.cells.find? (fun cell => cell.name = name)
+  match found with
+  | some cell => some ⟨cell.dataType, cell.value⟩
+  | none => none
 
 def concat (self other : Row) : Row :=
   { cells := self.cells ++ other.cells }

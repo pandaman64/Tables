@@ -3,8 +3,9 @@ module
 public import Tables.Table.Basic
 import Tables.Table.BasicLemmas
 public import Std.Data.HashMap
+import Std.Data.HashSet
 
-open Std (HashMap)
+open Std (HashMap HashSet Iter)
 
 public section
 
@@ -80,5 +81,88 @@ def pivotTable? (self : Table) (names : Array String) (aggs : Array Aggregation)
     return result.push row
 
   ofRows? rows
+
+def pivotLonger? (self : Table) (names : Array String) (c₁ c₂ : String) : Except Error Table := do
+  if hsize : names.size = 0 then
+    throw (.invalidArgument "pivotLonger: `names` must be non-empty")
+  else
+    -- Check `names` has no duplicates.
+    let mut seen : HashSet String := ∅
+    for name in names do
+      if seen.contains name then
+        throw (.duplicateColumnName name)
+      else
+        seen := seen.insert name
+
+    -- Check columns exist and have a single common data type.
+    let some dt₀ := self.schema.getDataTypeByName names[0]
+      | throw (.columnNotFound names[0])
+    for name in names do
+      let some dt := self.schema.getDataTypeByName name
+        | throw (.columnNotFound name)
+      if dt ≠ dt₀ then
+        throw <| .invalidArgument s!"pivotLonger: all `names` columns must have the same datatype (mismatch at {name})"
+
+    -- Check new columns don't overlap remaining columns.
+    let remainingHeader := self.header.filter (fun h => h ∉ names)
+    if c₁ = c₂ then
+      throw <| .duplicateColumnName c₁
+    if remainingHeader.any (· = c₁) then
+      throw <| .overlappingColumnName c₁
+    if remainingHeader.any (· = c₂) then
+      throw <| .overlappingColumnName c₂
+
+    self.selectMany?
+      (fun row _ _ =>
+        names.map fun name =>
+          (name, row.getValueByNameAndDataType! name dt₀))
+      (fun row (name, value) =>
+        row.selectNotByNames names
+          |>.pushCell { name := c₁, dataType := .string, value := some name }
+          |>.pushCell { name := c₂, dataType := dt₀, value := value })
+
+def pivotWider? (self : Table) (c₁ c₂ : String) : Except Error Table := do
+  if h₁ : self.hasColumn c₁ then
+    if h₂ : self.hasColumn c₂ then
+      let col₁ := self.getColumnByName c₁ h₁
+      if hdt₁ : col₁.dataType = .string then
+        have h : col₁.dataType.toType = String := by
+          simp [hdt₁]
+        let newColumnNames := collectNewColumnNames (h ▸ col₁.values)
+
+        let dt₂ := (self.getColumnByName c₂ h₂).dataType
+        let groups : HashMap Row (Array (Option String × Option dt₂.toType)) := self.groupBy
+          (fun row => row.filter (fun cell => cell.name ≠ c₁ ∧ cell.name ≠ c₂))
+          -- Ideally, we should propagate the schema so this can be provably safe.
+          (fun row => (row.getValueByNameAndDataType! c₁ .string, row.getValueByNameAndDataType! c₂ dt₂))
+        let groups' : HashMap Row (HashMap String (Option dt₂.toType)) :=
+          groups.map fun _ values => values.foldl (init := ∅) fun map (k, v) =>
+            match k with
+            | some k => map.insertIfNew k v -- Select the first occurrence of each key.
+            | none => map
+
+        let rows : Array Row := Iter.toArray <| groups'.iter.map fun (row, kv) =>
+          newColumnNames.foldl (init := row) fun row k =>
+            row.pushCell { name := k, dataType := dt₂, value := kv[k]?.getD none }
+
+        ofRows? rows
+      else
+        throw (Error.dataTypeNotSupported col₁.dataType)
+    else
+      throw (Error.columnNotFound c₂)
+  else
+    throw (Error.columnNotFound c₁)
+where
+  collectNewColumnNames (names : Array (Option String)) : Array String := Id.run do
+    let mut result : Array String := #[]
+    let mut seen : HashSet String := ∅
+    for name in names do
+      match name with
+      | some name =>
+        if !seen.contains name then
+          result := result.push name
+          seen := seen.insert name
+      | none => continue
+    result
 
 end Tables.Table
