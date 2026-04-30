@@ -266,7 +266,17 @@ theorem wfColumnSize_select
     (self.select schema' f h₁ h₂).WfColumnSize := by
   apply wfColumnSize_ofRows
   intro row hrow
-  grind [Array.mem_unattach, Fin, Fin.eta, Fin.is_lt, getRow, getRow_schema, Row, Row.schema, schema]
+  grind only [mem_unattach]
+
+theorem wfColumnSize_selectMany {α} (self : Raw) (schema : Schema)
+    (project : Row → (n : Nat) → n < self.nrows → Array α)
+    (result : Row → α → Row)
+    (h₁ : ∀ row a, (result row a).schema = schema)
+    (h₂ : self.WfColumnSize) :
+    (self.selectMany schema project result h₁ h₂).WfColumnSize := by
+  apply wfColumnSize_ofRows
+  intro row hrow
+  grind only [= mem_map]
 
 theorem wfColumnSize_dropna (self : Raw) (h : self.WfColumnSize) : (dropna self h).WfColumnSize := by
   unfold dropna
@@ -465,6 +475,14 @@ theorem select_schema (self : Raw) (schema' : Schema) (f : Row → (n : Nat) →
     (h₁ : ∀ row n h, (f row n h).schema = schema') (h₂ : self.WfColumnSize) :
     (self.select schema' f h₁ h₂).schema = schema' := by
   simp [Raw.select, ofRows_schema]
+
+theorem selectMany_schema {α} (self : Raw) (schema : Schema)
+    (project : Row → (n : Nat) → n < self.nrows → Array α)
+    (result : Row → α → Row)
+    (h₁ : ∀ row a, (result row a).schema = schema)
+    (h₂ : self.WfColumnSize) :
+    (self.selectMany schema project result h₁ h₂).schema = schema := by
+  simp [Raw.selectMany, ofRows_schema]
 
 theorem dropna_schema (self : Raw) (h : self.WfColumnSize) :
     (dropna self h).schema = self.schema := by
@@ -695,6 +713,15 @@ theorem wfColumnNames_select (self : Raw) (schema' : Schema) (f : Row → (n : N
     (hwf_schema : schema'.Wf) :
     (self.select schema' f h₁ h₂).WfColumnNames := by
   simpa [wfColumnNames_iff_schema_wf, select_schema] using hwf_schema
+
+theorem wfColumnNames_selectMany {α} (self : Raw) (schema : Schema)
+    (project : Row → (n : Nat) → n < self.nrows → Array α)
+    (result : Row → α → Row)
+    (h₁ : ∀ row a, (result row a).schema = schema)
+    (h₂ : self.WfColumnSize)
+    (hwf_schema : schema.Wf) :
+    (self.selectMany schema project result h₁ h₂).WfColumnNames := by
+  simpa [wfColumnNames_iff_schema_wf, selectMany_schema] using hwf_schema
 
 theorem wfColumnNames_dropna (self : Raw) (h : self.WfColumnSize)
     (hwf : self.WfColumnNames) :

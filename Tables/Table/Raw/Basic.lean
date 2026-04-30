@@ -329,6 +329,30 @@ def select (self : Raw) (schema : Schema) (f : Row → (n : Nat) → n < self.nr
     ⟨f row i.val i.isLt, h₁ row i.val i.isLt⟩
   ofRows schema rows.unattach (by grind [Array.mem_unattach])
 
+/--
+TableAPI: selectMany
+
+Note: We generalize the return type of `project` to `Array α`, instead of `Table` as specified in B2T2.
+We might want to have a `pselectMany` variant where `result` gets a proof that `α` comes from `project` (similarly to `pmap`).
+-/
+def selectMany {α} (self : Raw) (schema : Schema)
+    (project : Row → (n : Nat) → n < self.nrows → Array α)
+    (result : Row → α → Row)
+    (h₁ : ∀ row a, (result row a).schema = schema)
+    (h₂ : self.WfColumnSize) :
+    Raw :=
+  let values := Array.flatten <| Array.ofFn fun (i : Fin self.nrows) =>
+    let row := self.getRow i.val i.isLt h₂
+    (project row i.val i.isLt).map (row, ·)
+
+  let rows := values.map fun (row, a) => result row a
+  have h (row : Row) (mem : row ∈ rows) : row.schema = schema := by
+    simp only [rows, Array.mem_map] at mem
+    obtain ⟨⟨row', a⟩, _, eq⟩ := mem
+    exact eq ▸ h₁ row' a
+
+  ofRows schema rows h
+
 def completeCases (self : Raw) (column : String) (h : self.hasColumn column) : Array Bool :=
   let column := self.getColumnByName column h
   column.values.map fun

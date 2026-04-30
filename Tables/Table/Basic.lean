@@ -408,6 +408,28 @@ def select? (self : Table) (f : Row → (n : Nat) → n < self.nrows → Row) :
   else
     .ok default
 
+def selectMany {α} (self : Table) (schema : Schema)
+    (project : Row → (n : Nat) → n < self.nrows → Array α)
+    (result : Row → α → Row)
+    (h₁ : ∀ row a, (result row a).schema = schema)
+    (hwf_schema : schema.Wf) :
+    Table :=
+  {
+    raw := self.raw.selectMany schema project result h₁ self.wfColumnSize
+    wfColumnSize := wfColumnSize_selectMany self.raw schema project result h₁ self.wfColumnSize
+    wfColumnNames := wfColumnNames_selectMany self.raw schema project result h₁ self.wfColumnSize hwf_schema
+  }
+
+def selectMany? {α} (self : Table)
+    (project : Row → (n : Nat) → n < self.nrows → Array α)
+    (result : Row → α → Row) :
+    Except Error Table :=
+  let values := Array.flatten <| Array.ofFn fun (i : Fin self.nrows) =>
+    let row := self.getRow i.val i.isLt
+    (project row i.val i.isLt).map (row, ·)
+
+  ofRows? (values.map fun (row, a) => result row a)
+
 def completeCases (self : Table) (column : String) (h : self.hasColumn column) : Array Bool :=
   self.raw.completeCases column h
 
