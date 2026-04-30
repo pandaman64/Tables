@@ -34,6 +34,9 @@ def getName (self : Schema) (i : Nat) (h : i < self.size := by get_elem_tactic) 
 def getDataType (self : Schema) (i : Nat) (h : i < self.size := by get_elem_tactic) : DataType :=
   self.specs[i].2
 
+def getDataTypeByName (self : Schema) (name : String) : Option DataType :=
+  self.specs.findSome? fun (n, d) => if n = name then some d else none
+
 def Wf (self : Schema) : Prop :=
   ∀ (i j : Fin self.size), i < j → self.getName i ≠ self.getName j
 

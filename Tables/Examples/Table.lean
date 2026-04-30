@@ -1,17 +1,30 @@
 module
 
 meta import Tables.Table.Basic
+meta import Tables.Table.GroupBy
 
 meta section
 
 namespace Tables.Examples
 
 open Tables
+open Tables.Table
 
 private def unwrapTable (t : Except Error Table) : Table :=
   match t with
   | .ok t => t
   | .error _ => panic! "unwrapTable: expected a table, but got an error"
+
+private def meanNatFn (xs : Array (Option Nat)) : Option Nat :=
+  let ys : Array Nat := xs.filterMap id
+  if ys.size = 0 then
+    none
+  else
+    let sum : Nat := ys.foldl (· + ·) 0
+    some (sum / ys.size)
+
+private def countTrueFn (xs : Array (Option Bool)) : Option Nat :=
+  some <| xs.count (some true)
 
 def students : Table :=
   unwrapTable <| Table.ofColumns? #[
@@ -21,6 +34,14 @@ def students : Table :=
   ]
 
 #eval students.toFormat
+
+def studentsAgeAvgByFavoriteColor : Table :=
+  unwrapTable <|
+    students.pivotTable? #["favorite color"] #[
+      .ofFn "age-average" "age" meanNatFn,
+    ]
+
+#eval studentsAgeAvgByFavoriteColor.toFormat
 
 def studentsMissing : Table :=
   unwrapTable <| Table.ofColumns? #[
@@ -85,6 +106,15 @@ def jellyNamed : Table :=
   ]
 
 #eval jellyNamed.toFormat
+
+def jellyNamedCountsByAcneAndBrown : Table :=
+  unwrapTable <|
+    jellyNamed.pivotTable? #["get acne", "brown"] #[
+      .ofFn "red count" "red" countTrueFn,
+      .ofFn "pink count" "pink" countTrueFn,
+    ]
+
+#eval jellyNamedCountsByAcneAndBrown.toFormat
 
 def gradebook : Table :=
   unwrapTable <| Table.ofColumns? #[

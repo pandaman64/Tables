@@ -70,6 +70,9 @@ def replace (self : Row) (name : String) (dataType : DataType) (value : Option d
       cell
   }
 
+def filter (self : Row) (f : Cell → Bool) : Row :=
+  { cells := self.cells.filter f }
+
 /--
 TableAPI: getValue
 -/
