@@ -441,6 +441,9 @@ def count (self : Table) (column : String) (h : self.hasColumn column) : Table :
     wfColumnNames := wfColumnNames_count self.raw column h
   }
 
+def find (self : Table) (r : Row) : Option Nat :=
+  self.raw.find r self.wfColumnSize
+
 def count? (self : Table) (column : String) : Except Error Table :=
   if h : self.hasColumn column then
     .ok (self.count column h)

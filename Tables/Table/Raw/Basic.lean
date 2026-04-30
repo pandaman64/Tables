@@ -356,6 +356,13 @@ def count (self : Raw) (column : String) (h : self.hasColumn column) : Raw :=
     { name := "count", dataType := DataType.nat, values := counts.map some },
   ]
 
+def find (self : Raw) (r : Row) (h : self.WfColumnSize) : Option Nat := Id.run do
+  for hi : i in 0 ...< self.nrows do
+    let row := self.getRow i (Std.Rco.lt_upper_of_mem hi) h
+    if row = r then
+      return some i
+  none
+
 def toString (self : Raw) : String := Id.run do
   let columns := self.columns.map fun column =>
     #[column.name] ++ column.values.map fun
