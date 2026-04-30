@@ -230,6 +230,12 @@ def employeesWithDeptName : Table :=
 
 #eval employeesWithDeptName.toFormat
 
+def employeesWithDeptName_leftJoin : Table :=
+  employees.leftJoin departments #["Department ID"] (by native_decide)
+
+-- "Williams" has no Department ID, so Department Name becomes missing (none).
+#eval employeesWithDeptName_leftJoin.toFormat
+
 def departmentsWithEmployeeCounts : Table :=
   unwrapTable <|
     Table.groupJoin?

@@ -26,6 +26,9 @@ deriving Inhabited, DecidableEq, Hashable
 
 namespace Row
 
+def empty (schema : Schema) : Row :=
+  { cells := schema.specs.map fun (name, dataType) => { name, dataType, value := none } }
+
 def header (self : Row) : Array String :=
   self.cells.map (·.name)
 

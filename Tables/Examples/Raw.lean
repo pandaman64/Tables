@@ -122,7 +122,7 @@ def gradebookSeq : Raw :=
 
 #eval gradebookSeq.toFormat
 
-def studentsGrades := students.leftJoin gradebook #["name", "age"] sorry sorry
+def studentsGrades := students.leftJoin gradebook #["name", "age"] (by native_decide) (by native_decide)
 
 #eval! studentsGrades.toFormat
 

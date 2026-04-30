@@ -8,6 +8,10 @@ public section
 namespace Tables.Row
 
 @[simp, grind =]
+theorem empty_schema (schema : Schema) : (empty schema).schema = schema := by
+  simp [Row.empty, Row.schema, Function.comp_def]
+
+@[simp, grind =]
 theorem schema_size_eq_size (self : Row) : self.schema.size = self.size := by
   simp [Row.schema, Row.size, Schema.size]
 

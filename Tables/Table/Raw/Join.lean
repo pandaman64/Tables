@@ -45,7 +45,8 @@ def buildJoinMap {α} [BEq α] [Hashable α] (other : Raw) (h : other.WfColumnSi
 
 def leftJoin (self other : Raw) (keys : Array String)
     (h₁ : self.WfColumnSize) (h₂ : other.WfColumnSize) : Raw :=
-  let schema := self.schema ++ other.schema.selectNotByNames keys
+  let otherSchema := other.schema.selectNotByNames keys
+  let schema := self.schema ++ otherSchema
   let joinMap := other.buildJoinMap h₂ fun row => row.selectByNames keys
 
   let rows : Array { row : Row // row.schema = schema } :=
@@ -54,8 +55,8 @@ def leftJoin (self other : Raw) (keys : Array String)
       let keyRow := row.selectByNames keys
       match joinMap.get? keyRow with
       | some ns =>
-        rows ++ ns.map fun j => ⟨row ++ (other.getRow j.val j.isLt h₂).selectNotByNames keys, by simp [row, schema]⟩
-      | none => rows -- TODO: fill with null values
+        rows ++ ns.map fun j => ⟨row ++ (other.getRow j.val j.isLt h₂).selectNotByNames keys, by simp [row, schema, otherSchema]⟩
+      | none => rows.push ⟨row ++ Row.empty otherSchema, by simp [row, schema]⟩
 
   ofRows schema rows.unattach (by grind [Array.mem_unattach])
 
