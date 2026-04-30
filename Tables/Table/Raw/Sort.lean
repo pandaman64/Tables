@@ -89,7 +89,7 @@ def sortByColumns (self : Raw) (keys : Array (String × Order))
     keys.attach.foldr (init := ⟨self, rfl, h₂⟩) fun ⟨(key, order), hkey⟩ table =>
       have h : table.val.hasColumn key := by
         have h' : self.hasColumn key := h₁ (key, order) hkey
-        simpa [hasColumn_iff_mem_schema_specs, table.property.1] using h'
+        simpa [hasColumn_iff_schema_hasName, table.property.1] using h'
       ⟨
         table.val.tsort key order h table.property.2,
         by simp [tsort_schema, table.property.1],
