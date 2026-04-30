@@ -11,6 +11,26 @@ open Std (TreeMap)
 
 public section
 
+namespace Tables
+
+structure Comparator.{u} where
+  T : Type u
+  getKey : Row → T
+  compare : T → T → Ordering
+
+namespace Comparator
+
+def ofOrd {α} [Ord α] (getKey : Row → α) : Comparator :=
+  {
+    T := α
+    getKey := getKey
+    compare := Ord.compare
+  }
+
+end Comparator
+
+end Tables
+
 namespace Tables.Table.Raw
 
 -- We should have Array.sortBy
@@ -95,6 +115,44 @@ theorem wfColumnNames_sortByColumns (self : Raw) (keys : Array (String × Order)
     (h₁ : ∀ key ∈ keys, self.hasColumn key.1) (h₂ : self.WfColumnSize) (h₃ : self.WfColumnNames) :
     (self.sortByColumns keys h₁ h₂).WfColumnNames := by
   simpa [wfColumnNames_iff_schema_wf, sortByColumns_schema] using h₃
+
+def orderBy (self : Raw) (comparators : Array Comparator) (h : self.WfColumnSize) : Raw :=
+  let compare (r₁ r₂ : Row) : Ordering := Id.run do
+    for comparator in comparators do
+      let ordering := comparator.compare (comparator.getKey r₁) (comparator.getKey r₂)
+      if ordering ≠ .eq then
+        return ordering
+    return .eq
+
+  let init : TreeMap Row (Array (Fin self.nrows)) compare := ∅
+  let map := Nat.fold (init := init) self.nrows fun i isLt map =>
+    let row := self.getRow i isLt h
+    map.alter row fun
+      | some indices => some (indices.push ⟨i, isLt⟩)
+      | none => some #[⟨i, isLt⟩]
+
+  let table : { table : Raw // table.schema = self.schema } := map.foldl (init := ⟨Raw.empty self.schema, empty_schema⟩)
+    fun table _ indices =>
+      let rows := indices.map fun i => self.getRow i.val i.isLt h
+      ⟨table.val.addRows rows (by simp [rows, table.property]), by simp [addRows_schema, table.property]⟩
+  table.val
+
+theorem wfColumnSize_orderBy (self : Raw) (comparators : Array Comparator) (h : self.WfColumnSize) :
+    (self.orderBy comparators h).WfColumnSize := by
+  dsimp [orderBy]
+  rw [TreeMap.foldl_eq_foldl_toArray]
+  apply Array.foldl_induction (fun _ (table : { table : Raw // table.schema = self.schema }) => table.val.WfColumnSize) (wfColumnSize_empty self.schema)
+  intro _ table ht
+  apply wfColumnSize_addRows _ _ (by simp [table.property]) ht
+
+theorem orderBy_schema (self : Raw) (comparators : Array Comparator) (h : self.WfColumnSize) :
+    (self.orderBy comparators h).schema = self.schema := by
+  unfold orderBy
+  grind only
+
+theorem wfColumnNames_orderBy (self : Raw) (comparators : Array Comparator) (h₁ : self.WfColumnSize) (h₂ : self.WfColumnNames) :
+    (self.orderBy comparators h₁).WfColumnNames := by
+  simpa [wfColumnNames_iff_schema_wf, orderBy_schema] using h₂
 
 end Tables.Table.Raw
 

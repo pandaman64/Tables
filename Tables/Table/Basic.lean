@@ -488,6 +488,13 @@ def sortByColumns? (self : Table) (keys : Array (String × Order)) : Except Erro
     let firstMissing? := keys.find? (fun key => ¬ self.hasColumn key.1)
     .error (.columnNotFound (firstMissing?.map (fun key => key.1) |>.getD ""))
 
+def orderBy (self : Table) (comparators : Array Comparator) : Table :=
+  {
+    raw := self.raw.orderBy comparators self.wfColumnSize
+    wfColumnSize := wfColumnSize_orderBy self.raw comparators self.wfColumnSize
+    wfColumnNames := wfColumnNames_orderBy self.raw comparators self.wfColumnSize self.wfColumnNames
+  }
+
 def crossJoin (self other : Table)
     (hdisjoint :
       ∀ (i : Fin self.ncols) (j : Fin other.ncols),
