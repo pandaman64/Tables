@@ -488,6 +488,34 @@ def update? (self : Table) (f : Row → Row) : Except Error Table :=
     rows.push (f (self.getRow i isLt))
   ofRows? rows
 
+def flatten? (self : Table) (names : Array String) : Except Error Table := do
+  if hn : names.isEmpty then
+    return self
+  else
+    let rows ← Nat.foldM (init := #[]) self.nrows fun i isLt rows => do
+      let row := self.getRow i isLt
+      let values : Array (String × (dt : DataType) × Array dt.toType) ← names.mapM fun name => do
+        let some cell := row.getCellByName? name
+          | throw (Error.columnNotFound name)
+        match h : cell.dataType with
+        | .array dt =>
+          have eqType : cell.dataType.toType = Array dt.toType := by simp [h]
+          let some values := eqType ▸ cell.value
+            | throw (Error.invalidArgument s!"{name} has a null value")
+          return ⟨name, dt, values⟩
+        | _ => throw (Error.dataTypeNotSupported cell.dataType)
+      let size := values[0]?.map (·.2.2.size) |>.getD 0
+      let newRows ← Nat.foldM (init := #[]) size fun j isLt rows => do
+        let row' ← values.foldlM (init := row) fun row ⟨name, dt, values⟩ => do
+          if hvsize : values.size = size then
+            let v := values[j]
+            return row.replace name dt v
+          else
+            throw (Error.invalidArgument s!"{name} has a different size than the other columns at index {j}")
+        return rows.push row'
+      return rows ++ newRows
+    ofRows? rows
+
 def toString (self : Table) : String :=
   self.raw.toString
 

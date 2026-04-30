@@ -62,6 +62,14 @@ def setCell (self : Row) (i : Nat) (cell : Cell) (h : i < self.size := by get_el
 def hasNameAndDataType (self : Row) (name : String) (dataType : DataType) : Bool :=
   self.cells.any (fun cell => cell.name = name ∧ cell.dataType = dataType)
 
+def replace (self : Row) (name : String) (dataType : DataType) (value : Option dataType.toType) : Row :=
+  { cells := self.cells.map fun cell =>
+    if cell.name = name then
+      { cell with dataType, value }
+    else
+      cell
+  }
+
 /--
 TableAPI: getValue
 -/

@@ -125,6 +125,25 @@ def gradebookSeq : Table :=
 
 #eval gradebookSeq.toFormat
 
+def gradebookQuizzesLong : Table :=
+  unwrapTable <| gradebookSeq.flatten? #["quizzes"]
+
+#eval gradebookQuizzesLong.toFormat
+
+def weeklyHoursNested : Table :=
+  unwrapTable <| Table.ofColumns? #[
+    Column.ofValues "employee" #["Ann", "Bob"],
+    Column.ofValues "week" #[#[1, 2, 3], #[1, 2]],
+    Column.ofValues "hours" #[#[8, 7, 6], #[5, 9]],
+  ]
+
+#eval weeklyHoursNested.toFormat
+
+def weeklyHoursLong : Table :=
+  unwrapTable <| weeklyHoursNested.flatten? #["week", "hours"]
+
+#eval weeklyHoursLong.toFormat
+
 def studentsGrades : Table :=
   unwrapTable <| students.leftJoin? gradebook #["name", "age"]
 
