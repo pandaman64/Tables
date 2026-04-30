@@ -80,6 +80,60 @@ theorem wfColumnNames_leftJoin (self other : Raw) (keys : Array String)
       Schema.wf_filter ((wfColumnNames_iff_schema_wf other).mp hwf₂) (p := fun x : String × DataType => x.1 ∉ keys)
   exact Schema.wf_concat ((wfColumnNames_iff_schema_wf self).mp hwf₁) hwfR hdisjoint
 
+theorem wfColumnSize_join {α} [BEq α] [Hashable α] (self other : Raw) (schema : Schema)
+    (getKey₁ : Row → α) (getKey₂ : Row → α)
+    (combine : Row → Row → Row)
+    (h₁ : self.WfColumnSize) (h₂ : other.WfColumnSize)
+    (h₃ : ∀ r₁ r₂, (combine r₁ r₂).schema = schema) :
+    (join self other schema getKey₁ getKey₂ combine h₁ h₂ h₃).WfColumnSize := by
+  unfold join
+  apply wfColumnSize_ofRows
+
+theorem join_schema {α} [BEq α] [Hashable α] (self other : Raw) (schema : Schema)
+    (getKey₁ : Row → α) (getKey₂ : Row → α)
+    (combine : Row → Row → Row)
+    (h₁ : self.WfColumnSize) (h₂ : other.WfColumnSize)
+    (h₃ : ∀ r₁ r₂, (combine r₁ r₂).schema = schema) :
+    (join self other schema getKey₁ getKey₂ combine h₁ h₂ h₃).schema = schema := by
+  unfold join
+  apply ofRows_schema
+
+theorem wfColumnNames_join {α} [BEq α] [Hashable α] (self other : Raw) (schema : Schema)
+    (getKey₁ : Row → α) (getKey₂ : Row → α)
+    (combine : Row → Row → Row)
+    (h₁ : self.WfColumnSize) (h₂ : other.WfColumnSize)
+    (h₃ : ∀ r₁ r₂, (combine r₁ r₂).schema = schema)
+    (hwf : schema.Wf) :
+    (join self other schema getKey₁ getKey₂ combine h₁ h₂ h₃).WfColumnNames := by
+  simpa [wfColumnNames_iff_schema_wf, join_schema] using hwf
+
+theorem wfColumnSize_groupJoin {α} [BEq α] [Hashable α] (self other : Raw) (schema : Schema)
+    (getKey₁ : Row → α) (getKey₂ : Row → α)
+    (combine : Row → Raw → Row)
+    (h₁ : self.WfColumnSize) (h₂ : other.WfColumnSize)
+    (h₃ : ∀ r₁ r₂, (combine r₁ r₂).schema = schema) :
+    (groupJoin self other schema getKey₁ getKey₂ combine h₁ h₂ h₃).WfColumnSize := by
+  unfold groupJoin
+  apply wfColumnSize_ofRows
+
+theorem groupJoin_schema {α} [BEq α] [Hashable α] (self other : Raw) (schema : Schema)
+    (getKey₁ : Row → α) (getKey₂ : Row → α)
+    (combine : Row → Raw → Row)
+    (h₁ : self.WfColumnSize) (h₂ : other.WfColumnSize)
+    (h₃ : ∀ r₁ r₂, (combine r₁ r₂).schema = schema) :
+    (groupJoin self other schema getKey₁ getKey₂ combine h₁ h₂ h₃).schema = schema := by
+  unfold groupJoin
+  apply ofRows_schema
+
+theorem wfColumnNames_groupJoin {α} [BEq α] [Hashable α] (self other : Raw) (schema : Schema)
+    (getKey₁ : Row → α) (getKey₂ : Row → α)
+    (combine : Row → Raw → Row)
+    (h₁ : self.WfColumnSize) (h₂ : other.WfColumnSize)
+    (h₃ : ∀ r₁ r₂, (combine r₁ r₂).schema = schema)
+    (hwf : schema.Wf) :
+    (groupJoin self other schema getKey₁ getKey₂ combine h₁ h₂ h₃).WfColumnNames := by
+  simpa [wfColumnNames_iff_schema_wf, groupJoin_schema] using hwf
+
 end wfColumnNames
 
 end Tables.Table.Raw

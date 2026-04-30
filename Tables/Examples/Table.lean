@@ -219,6 +219,29 @@ def studentsByAgeAscThenNameDesc : Table :=
 
 #eval studentsByAgeAscThenNameDesc.toFormat
 
+def employeesWithDeptName : Table :=
+  unwrapTable <|
+    Table.join?
+      employees
+      departments
+      (fun e => e.selectByNames #["Department ID"])
+      (fun d => d.selectByNames #["Department ID"])
+      (fun e d => e ++ d.selectNotByNames #["Department ID"])
+
+#eval employeesWithDeptName.toFormat
+
+def departmentsWithEmployeeCounts : Table :=
+  unwrapTable <|
+    Table.groupJoin?
+      departments
+      employees
+      (fun d => d.selectByNames #["Department ID"])
+      (fun e => e.selectByNames #["Department ID"])
+      (fun d emps =>
+        d.pushCell { name := "employee count", dataType := DataType.nat, value := some emps.nrows })
+
+#eval departmentsWithEmployeeCounts.toFormat
+
 end Tables.Examples
 
 end

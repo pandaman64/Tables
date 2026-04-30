@@ -4,12 +4,10 @@ public import Tables.Table.Raw
 public import Tables.Error
 
 import Tables.Table.Raw.Sort
-import Init.Data.Array.Find
-import Init.Data.Array.Lemmas
+import Std.Data.HashMap
 
 open Tables.Table (Raw)
 open Tables.Table.Raw
-open Array
 
 public section
 
@@ -609,6 +607,51 @@ def leftJoin? (self other : Table) (keys : Array String) : Except Error Table :=
     .ok (leftJoin self other keys hd)
   else
     .error (.overlappingColumnName (firstLeftJoinOverlapName self other keys))
+
+def join {α} [BEq α] [Hashable α] (self other : Table) (schema : Schema)
+    (getKey₁ : Row → α) (getKey₂ : Row → α)
+    (combine : Row → Row → Row)
+    (h : ∀ r₁ r₂, (combine r₁ r₂).schema = schema) (hwf_schema : schema.Wf) : Table :=
+  {
+    raw := self.raw.join other.raw schema getKey₁ getKey₂ combine self.wfColumnSize other.wfColumnSize h
+    wfColumnSize := wfColumnSize_join self.raw other.raw schema getKey₁ getKey₂ combine self.wfColumnSize other.wfColumnSize h
+    wfColumnNames := wfColumnNames_join self.raw other.raw schema getKey₁ getKey₂ combine self.wfColumnSize other.wfColumnSize h hwf_schema
+  }
+
+def join? {α} [BEq α] [Hashable α] (self other : Table)
+    (getKey₁ : Row → α) (getKey₂ : Row → α)
+    (combine : Row → Row → Row) :
+    Except Error Table :=
+  let joinMap := other.raw.buildJoinMap other.wfColumnSize getKey₂
+  let rows := Nat.fold (init := #[]) self.nrows fun i isLt rows =>
+    let key := getKey₁ (self.getRow i isLt)
+    match joinMap.get? key with
+    | some ns =>
+      rows ++ ns.map fun j => combine (self.getRow i isLt) (other.getRow j.val j.isLt)
+    | none => rows
+  ofRows? rows
+
+def groupJoin {α} [BEq α] [Hashable α] (self other : Table) (schema : Schema)
+    (getKey₁ : Row → α) (getKey₂ : Row → α)
+    (combine : Row → Raw → Row)
+    (h : ∀ r₁ r₂, (combine r₁ r₂).schema = schema) (hwf_schema : schema.Wf) : Table :=
+  {
+    raw := self.raw.groupJoin other.raw schema getKey₁ getKey₂ combine self.wfColumnSize other.wfColumnSize h
+    wfColumnSize := wfColumnSize_groupJoin self.raw other.raw schema getKey₁ getKey₂ combine self.wfColumnSize other.wfColumnSize h
+    wfColumnNames := wfColumnNames_groupJoin self.raw other.raw schema getKey₁ getKey₂ combine self.wfColumnSize other.wfColumnSize h hwf_schema
+  }
+
+def groupJoin? {α} [BEq α] [Hashable α] (self other : Table)
+    (getKey₁ : Row → α) (getKey₂ : Row → α)
+    (combine : Row → Table → Row) :
+    Except Error Table :=
+  let joinMap := other.raw.buildJoinMap other.wfColumnSize getKey₂
+  let rows := Nat.fold (init := #[]) self.nrows fun i isLt rows =>
+    let key := getKey₁ (self.getRow i isLt)
+    match joinMap.get? key with
+    | some ns => rows.push (combine (self.getRow i isLt) (other.selectRows ns))
+    | none => rows
+  ofRows? rows
 
 end Table
 
