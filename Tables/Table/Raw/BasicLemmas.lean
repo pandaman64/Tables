@@ -747,7 +747,8 @@ end wfColumnNames
 section hasColumn
 
 theorem hasColumn_selectColumns_iff (self : Raw) (ns : Array (Fin self.ncols)) (name : String) :
-    (self.selectColumns ns).hasColumn name ↔ ∃ i ∈ ns, (self.getColumn i.val i.isLt).name = name := by
+    (self.selectColumns ns).hasColumn name ↔
+      ∃ (i : Fin self.ncols), i ∈ ns ∧ (self.getColumn i.val i.isLt).name = name := by
   grind [hasColumn, selectColumns, Array.mem_iff_getElem]
 
 theorem hasColumn_selectColumnsByMask_iff (self : Raw) (mask : Vector Bool self.ncols) (name : String) :

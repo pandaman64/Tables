@@ -10,6 +10,173 @@ public section
 
 namespace Tables.Table
 
+section fallible
+
+theorem selectColumns?_eq_some_iff {self result : Table} {ns : Array (Fin self.ncols)} :
+    self.selectColumns? ns = .ok result ↔ ∃ (hinj : ns.Nodup), self.selectColumns ns hinj = result := by
+  grind [selectColumns?]
+
+theorem selectColumnsByName?_eq_some_iff {self result : Table} {names : Array String} :
+    self.selectColumnsByName? names = .ok result ↔
+      ∃ (h : ∀ name ∈ names, self.hasColumn name) (hnodup : names.Nodup), self.selectColumnsByName names h hnodup = result := by
+  grind [selectColumnsByName?]
+
+theorem empty?_eq_some_iff {result : Table} {schema : Schema} :
+    empty? schema = .ok result ↔ ∃ (hwf : schema.Wf), empty schema hwf = result := by
+  grind [empty?]
+
+theorem ofColumns?_eq_some_iff {result : Table} {columns : Array Column} :
+    ofColumns? columns = .ok result ↔
+      ∃ (hsize : columns.Pairwise (fun x y => x.size = y.size))
+        (hnames : columns.Pairwise (fun x y => x.name ≠ y.name)),
+        ofColumns columns hsize hnames = result := by
+  grind [ofColumns?]
+
+theorem take?_eq_some_iff {self result : Table} {n : Nat} :
+    self.take? n = .ok result ↔ ∃ (hle : n ≤ self.nrows), self.take n hle = result := by
+  grind [take?]
+
+theorem addRow?_eq_some_iff {self result : Table} {row : Row} :
+    self.addRow? row = .ok result ↔ ∃ (h : row.schema = self.schema), self.addRow row h = result := by
+  grind [addRow?]
+
+theorem addRows?_eq_some_iff {self result : Table} {rows : Array Row} :
+    self.addRows? rows = .ok result ↔
+      ∃ (h : ∀ row ∈ rows, row.schema = self.schema), self.addRows rows h = result := by
+  grind [addRows?]
+
+theorem ofRows?_eq_some_iff {result : Table} {rows : Array Row} :
+    ofRows? rows = .ok result ↔
+      (∃ (hsize : 0 < rows.size) (hr : ∀ row ∈ rows, row.schema = rows[0].schema) (hwf : rows[0].schema.Wf),
+        result = ofRows rows[0].schema rows hr hwf) ∨
+      (rows = #[] ∧ result = default) := by
+  grind [ofRows?]
+
+theorem addColumn?_eq_some_iff {self result : Table} {column : Column} :
+    self.addColumn? column = .ok result ↔
+      ∃ (hsize : column.size = self.nrows)
+        (hfresh : ∀ (i : Fin self.ncols), (self.getColumn i.val i.isLt).name ≠ column.name),
+        self.addColumn column hsize hfresh = result := by
+  unfold addColumn?
+  split <;> try grind
+  split <;> simp [*]
+
+theorem buildColumn?_eq_some_iff {α} [DataType.OfType α] {self result : Table} {name : String}
+    {f : Row → Option α} :
+    self.buildColumn? name f = .ok result ↔
+      ∃ (hfresh : ∀ (i : Fin self.ncols), (self.getColumn i.val i.isLt).name ≠ name),
+        self.buildColumn name f hfresh = result := by
+  unfold buildColumn?
+  split <;> simp [*]
+
+theorem replaceColumn?_eq_some_iff {self result : Table} {column : Column} :
+    self.replaceColumn? column = .ok result ↔
+      ∃ (hsize : column.size = self.nrows), self.replaceColumn column hsize = result := by
+  grind [replaceColumn?]
+
+theorem transformColumn?_eq_some_iff {α} [DataType.OfType α] {self result : Table} {name : String}
+    {f : (h : self.hasColumn name) → Option ((self.getColumnByName name h).dataType.toType) → Option α} :
+    self.transformColumn? name f = .ok result ↔
+      ∃ (h : self.hasColumn name), self.transformColumn name h (f h) = result := by
+  grind [transformColumn?]
+
+theorem vcat?_eq_some_iff {self other result : Table} :
+    self.vcat? other = .ok result ↔ ∃ (h : self.schema = other.schema), self.vcat other h = result := by
+  grind [vcat?]
+
+theorem hcat?_eq_some_iff {self other result : Table} :
+    self.hcat? other = .ok result ↔
+      ∃ (hrows : self.nrows = other.nrows)
+        (hdisjoint :
+          ∀ (i : Fin self.ncols) (j : Fin other.ncols),
+            (self.getColumn i.val i.isLt).name ≠ (other.getColumn j.val j.isLt).name),
+        self.hcat other hrows hdisjoint = result := by
+  unfold hcat?
+  split <;> try simp [*]
+  split <;> simp [*]
+
+theorem renameColumn?_eq_some_iff {self result : Table} {oldName newName : String} :
+    self.renameColumn? oldName newName = .ok result ↔
+      ∃ (hfresh :
+          ∀ (i : Fin self.ncols),
+            (self.getColumn i.val i.isLt).name ≠ newName ∨ (self.getColumn i.val i.isLt).name = oldName),
+        self.renameColumn oldName newName hfresh = result := by
+  unfold renameColumn?
+  split <;> simp [*]
+
+theorem renameColumns?_def {self : Table} {renames : Array (String × String)} :
+    self.renameColumns? renames = renames.foldlM (init := self) fun table (oldName, newName) => renameColumn? table oldName newName := by
+  rfl
+
+-- TODO: Give a sufficient condition for `renameColumns?` to succeed.
+
+-- TODO: It's probably better to introduce a typed Row type so that `select` has a better precondition and can be associated with `select?`.
+theorem select?_eq_some_iff {self result : Table} {f : Row → (n : Nat) → n < self.nrows → Row} :
+    self.select? f = .ok result ↔
+      (∃ (hsize : 0 < self.nrows) (hr : ∀ i h, (f (self.getRow i h) i h).schema = (f (self.getRow 0 hsize) 0 hsize).schema) (hwf : (f (self.getRow 0 hsize) 0 hsize).schema.Wf),
+        result = ofRows (f (self.getRow 0 hsize) 0 hsize).schema (Array.ofFn fun (i : Fin self.nrows) => f (self.getRow i i.isLt) i.val i.isLt) (by grind) hwf) ∨
+      (self.nrows = 0 ∧ result = default) := by
+  dsimp [select?]
+  rw [ofRows?_eq_some_iff]
+  apply Iff.intro
+  . intro h
+    cases h with
+    | inl h =>
+      obtain ⟨hsize, hr, hwf, rfl⟩ := h
+      refine .inl ⟨by simpa using hsize, fun i h => ?_, by simpa using hwf, by simp⟩
+      simpa using hr (f (self.getRow i h) i h) (Array.mem_ofFn.mpr ⟨⟨i, h⟩, rfl⟩)
+    | inr h => grind [Array.ofFn_eq_empty_iff]
+  . intro h
+    cases h with
+    | inl h =>
+      obtain ⟨hsize, hr, hwf, rfl⟩ := h
+      refine .inl ⟨by simpa using hsize, fun row hrow => ?_, by simpa using hwf, by simp⟩
+      rw [Array.mem_ofFn] at hrow
+      obtain ⟨i, h, rfl⟩ := hrow
+      simpa using hr i.val i.isLt
+    | inr h => grind
+
+theorem fillna?_eq_some_iff {self result : Table} {column : String}
+    {replacement : (h : self.hasColumn column) → (self.getColumnByName column h).dataType.toType} :
+    self.fillna? column replacement = .ok result ↔
+      ∃ (h : self.hasColumn column), self.fillna column h (replacement h) = result := by
+  grind [fillna?]
+
+theorem count?_eq_some_iff {self result : Table} {column : String} :
+    self.count? column = .ok result ↔ ∃ (h : self.hasColumn column), self.count column h = result := by
+  grind [count?]
+
+theorem tsort?_eq_some_iff {self result : Table} {key : String} {order : Order} :
+    self.tsort? key order = .ok result ↔ ∃ (h : self.hasColumn key), self.tsort key order h = result := by
+  grind [tsort?]
+
+theorem sortByColumns?_eq_some_iff {self result : Table} {keys : Array (String × Order)} :
+    self.sortByColumns? keys = .ok result ↔
+      ∃ (h : ∀ key ∈ keys, self.hasColumn key.1), self.sortByColumns keys h = result := by
+  grind [sortByColumns?]
+
+theorem crossJoin?_eq_some_iff {self other result : Table} :
+    self.crossJoin? other = .ok result ↔
+      ∃ (hd :
+          (∀ (i : Fin self.ncols) (j : Fin other.ncols),
+            (self.getColumn i.val i.isLt).name ≠ (other.getColumn j.val j.isLt).name)),
+        self.crossJoin other hd = result := by
+  unfold crossJoin?
+  split <;> simp [*]
+
+theorem leftJoin?_eq_some_iff {self other result : Table} {keys : Array String} :
+    self.leftJoin? other keys = .ok result ↔
+      ∃ (hd :
+          (∀ (i : Fin self.schema.size) (j : Fin (other.schema.selectNotByNames keys).size),
+            self.schema.getName i.val i.isLt ≠ (other.schema.selectNotByNames keys).getName j.val j.isLt)),
+        self.leftJoin other keys hd = result := by
+  dsimp [leftJoin?]
+  split <;> simp [*]
+
+-- TODO: Characterize the remaining operations.
+
+end fallible
+
 section schema
 
 theorem getRow_schema (self : Table) (i : Nat) (h : i < self.nrows) :
@@ -203,7 +370,8 @@ theorem hasColumn_iff_schema_hasName (self : Table) (name : String) :
   simp [Table.hasColumn, Table.schema, Raw.hasColumn_iff_schema_hasName]
 
 theorem hasColumn_selectColumns_iff (self : Table) (ns : Array (Fin self.ncols)) (hinj : ns.Nodup) (name : String) :
-    (self.selectColumns ns hinj).hasColumn name ↔ ∃ i ∈ ns, (self.getColumn i.val i.isLt).name = name := by
+    (self.selectColumns ns hinj).hasColumn name ↔
+      ∃ (i : Fin self.ncols), i ∈ ns ∧ (self.getColumn i.val i.isLt).name = name := by
   simpa [Table.hasColumn, Table.selectColumns, getColumn] using Raw.hasColumn_selectColumns_iff self.raw ns name
 
 theorem hasColumn_selectColumnsByMask_iff (self : Table) (mask : Vector Bool self.ncols) (name : String) :

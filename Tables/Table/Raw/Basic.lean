@@ -69,7 +69,7 @@ theorem empty_schema {schema : Schema} : (empty schema).schema = schema := by
   simp [Raw.schema, Raw.empty, Array.map_map, Function.comp_def]
 
 def ofColumns (columns : Array Column) : Raw :=
-  if h : columns.size > 0 then
+  if h : 0 < columns.size then
     { columns, nrows := columns[0].size }
   else
     default
