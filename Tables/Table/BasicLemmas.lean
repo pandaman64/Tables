@@ -86,10 +86,7 @@ theorem vcat?_eq_some_iff {self other result : Table} :
 
 theorem hcat?_eq_some_iff {self other result : Table} :
     self.hcat? other = .ok result ↔
-      ∃ (hrows : self.nrows = other.nrows)
-        (hdisjoint :
-          ∀ (i : Fin self.ncols) (j : Fin other.ncols),
-            (self.getColumn i.val i.isLt).name ≠ (other.getColumn j.val j.isLt).name),
+      ∃ (hrows : self.nrows = other.nrows) (hdisjoint : self.header.Disjoint other.header),
         self.hcat other hrows hdisjoint = result := by
   unfold hcat?
   split <;> try simp [*]
@@ -157,18 +154,13 @@ theorem sortByColumns?_eq_some_iff {self result : Table} {keys : Array (String �
 
 theorem crossJoin?_eq_some_iff {self other result : Table} :
     self.crossJoin? other = .ok result ↔
-      ∃ (hd :
-          (∀ (i : Fin self.ncols) (j : Fin other.ncols),
-            (self.getColumn i.val i.isLt).name ≠ (other.getColumn j.val j.isLt).name)),
-        self.crossJoin other hd = result := by
+      ∃ (hd : self.header.Disjoint other.header), self.crossJoin other hd = result := by
   unfold crossJoin?
   split <;> simp [*]
 
 theorem leftJoin?_eq_some_iff {self other result : Table} {keys : Array String} :
     self.leftJoin? other keys = .ok result ↔
-      ∃ (hd :
-          (∀ (i : Fin self.schema.size) (j : Fin (other.schema.selectNotByNames keys).size),
-            self.schema.getName i.val i.isLt ≠ (other.schema.selectNotByNames keys).getName j.val j.isLt)),
+      ∃ (hd : self.header.Disjoint (other.schema.selectNotByNames keys).header),
         self.leftJoin other keys hd = result := by
   dsimp [leftJoin?]
   split <;> simp [*]
@@ -273,9 +265,7 @@ theorem vcat_schema (self other : Table) (h : self.schema = other.schema) :
 
 theorem hcat_schema (self other : Table)
     (hrows : self.nrows = other.nrows)
-    (hdisjoint :
-      ∀ (i : Fin self.ncols) (j : Fin other.ncols),
-        (self.getColumn i.val i.isLt).name ≠ (other.getColumn j.val j.isLt).name) :
+    (hdisjoint : self.header.Disjoint other.header) :
     (self.hcat other hrows hdisjoint).schema = self.schema ++ other.schema := by
   simp [Table.hcat, Table.schema, Raw.hcat_schema]
 
@@ -321,16 +311,12 @@ theorem distinct_schema (self : Table) :
   simp [Table.distinct, Table.schema, Raw.distinct_schema]
 
 theorem crossJoin_schema (self other : Table)
-    (hdisjoint :
-      ∀ (i : Fin self.ncols) (j : Fin other.ncols),
-        (self.getColumn i.val i.isLt).name ≠ (other.getColumn j.val j.isLt).name) :
+    (hdisjoint : self.header.Disjoint other.header) :
     (crossJoin self other hdisjoint).schema = self.schema ++ other.schema := by
   simp [Table.crossJoin, Table.schema, Raw.crossJoin_schema]
 
 theorem leftJoin_schema (self other : Table) (keys : Array String)
-    (hdisjoint :
-      ∀ (i : Fin self.schema.size) (j : Fin (other.schema.selectNotByNames keys).size),
-        self.schema.getName i.val i.isLt ≠ (other.schema.selectNotByNames keys).getName j.val j.isLt) :
+    (hdisjoint : self.header.Disjoint (other.schema.selectNotByNames keys).header) :
     (leftJoin self other keys hdisjoint).schema = self.schema ++ other.schema.selectNotByNames keys := by
   simp [Table.leftJoin, Table.schema, Raw.leftJoin_schema]
 
@@ -449,9 +435,7 @@ theorem hasColumn_vcat_iff (self other : Table) (h : self.schema = other.schema)
 
 theorem hasColumn_hcat_iff (self other : Table)
     (hrows : self.nrows = other.nrows)
-    (hdisjoint :
-      ∀ (i : Fin self.ncols) (j : Fin other.ncols),
-        (self.getColumn i.val i.isLt).name ≠ (other.getColumn j.val j.isLt).name) (name : String) :
+    (hdisjoint : self.header.Disjoint other.header) (name : String) :
     (self.hcat other hrows hdisjoint).hasColumn name ↔ self.hasColumn name ∨ other.hasColumn name := by
   simp [Table.hasColumn, Table.hcat, Raw.hasColumn_hcat_iff]
 
@@ -517,17 +501,13 @@ theorem hasColumn_distinct_iff (self : Table) (name : String) :
   simp [Table.hasColumn, Table.distinct, Raw.distinct_hasColumn_iff self.raw self.wfColumnSize]
 
 theorem hasColumn_crossJoin_iff (self other : Table)
-    (hdisjoint :
-      ∀ (i : Fin self.ncols) (j : Fin other.ncols),
-        (self.getColumn i.val i.isLt).name ≠ (other.getColumn j.val j.isLt).name) (name : String) :
+    (hdisjoint : self.header.Disjoint other.header) (name : String) :
     (crossJoin self other hdisjoint).hasColumn name ↔ self.hasColumn name ∨ other.hasColumn name := by
   simpa [Table.hasColumn, Table.crossJoin, getColumn] using
     (Raw.crossJoin_hasColumn_iff self.raw other.raw self.wfColumnSize other.wfColumnSize name)
 
 theorem hasColumn_leftJoin_iff (self other : Table) (keys : Array String)
-    (hdisjoint :
-      ∀ (i : Fin self.schema.size) (j : Fin (other.schema.selectNotByNames keys).size),
-        self.schema.getName i.val i.isLt ≠ (other.schema.selectNotByNames keys).getName j.val j.isLt)
+    (hdisjoint : self.header.Disjoint (other.schema.selectNotByNames keys).header)
     (name : String) :
     (leftJoin self other keys hdisjoint).hasColumn name ↔
       self.hasColumn name ∨ (other.hasColumn name ∧ name ∉ keys) := by

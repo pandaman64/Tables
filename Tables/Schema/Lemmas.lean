@@ -3,6 +3,7 @@ module
 public import Tables.Schema.Basic
 
 import Tables.Data.Array.Nodup
+public import Tables.Data.Array.Disjoint
 public import Tables.Data.Array.Pairwise
 
 import Init.Data.Array.Lemmas
@@ -17,7 +18,16 @@ namespace Schema
 theorem append_def (self other : Schema) :
     self ++ other = { specs := self.specs ++ other.specs } := (rfl)
 
+@[grind =]
 theorem size_eq (self : Schema) : self.specs.size = self.size := (rfl)
+
+@[grind =]
+theorem header_size_eq (self : Schema) : self.header.size = self.size := by
+  simp [header, size_eq]
+
+theorem specs_getElem_fst_eq_header_getElem (self : Schema) (i : Nat) (h : i < self.size) :
+    self.specs[i].1 = self.header[i]'(self.header_size_eq ▸ h) := by
+  grind [header]
 
 @[simp, grind =]
 theorem ofSpecs_specs (specs : Array (String × DataType)) : (ofSpecs specs).specs = specs := (rfl)
@@ -159,14 +169,14 @@ theorem wf_rename {schema : Schema} {oldName newName : String}
 
 theorem wf_concat {schema₁ schema₂ : Schema}
     (hwf₁ : schema₁.Wf) (hwf₂ : schema₂.Wf)
-    (hdisjoint : ∀ (i : Fin schema₁.size) (j : Fin schema₂.size),
-      schema₁.getName i ≠ schema₂.getName j) :
+    (hdisjoint : schema₁.header.Disjoint schema₂.header) :
     (schema₁ ++ schema₂).Wf := by
   refine wf_of_pairwise (Array.pairwise_append.mpr ⟨pairwise_of_wf hwf₁, pairwise_of_wf hwf₂, ?_⟩)
   intro s₁ h₁ s₂ h₂
   obtain ⟨n₁, lt₁, eq₁⟩ := Array.getElem_of_mem h₁
   obtain ⟨n₂, lt₂, eq₂⟩ := Array.getElem_of_mem h₂
-  simpa [←eq₁, ←eq₂] using hdisjoint ⟨n₁, lt₁⟩ ⟨n₂, lt₂⟩
+  rw [←eq₁, ←eq₂, specs_getElem_fst_eq_header_getElem, specs_getElem_fst_eq_header_getElem]
+  exact Array.Disjoint.iff_getElem_ne.mp hdisjoint n₁ n₂ (by grind) (by grind)
 
 end Schema
 

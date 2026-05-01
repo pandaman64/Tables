@@ -34,6 +34,9 @@ def getDataType (self : Schema) (i : Nat) (h : i < self.size := by get_elem_tact
 def getDataTypeByName (self : Schema) (name : String) : Option DataType :=
   self.specs.findSome? fun (n, d) => if n = name then some d else none
 
+def header (self : Schema) : Array String :=
+  self.specs.map (·.1)
+
 def hasName (self : Schema) (name : String) : Bool :=
   self.specs.any (·.1 = name)
 

@@ -2,7 +2,9 @@ module
 
 public import Tables.Table.Raw.Basic
 import all Tables.Table.Raw.Basic
+public import Tables.Data.Array.Disjoint
 public import Tables.Data.Array.Nodup
+
 import Std.Data.HashMap.Lemmas
 import Tables.Data.HashMap
 
@@ -12,6 +14,10 @@ open Array
 public section
 
 namespace Tables.Table.Raw
+
+@[grind =]
+theorem header_eq_schema_header (self : Raw) : self.header = self.schema.header := by
+  simp [header, schema, Schema.header]
 
 section wfColumnSize
 
@@ -669,20 +675,16 @@ theorem wfColumnNames_vcat (self other : Raw) (hschema : self.schema = other.sch
 
 theorem wfColumnNames_hcat (self other : Raw)
     (hwf₁ : self.WfColumnNames) (hwf₂ : other.WfColumnNames)
-    (hdisjoint :
-      ∀ (i : Fin self.ncols) (j : Fin other.ncols),
-        (self.getColumn i.val i.isLt).name ≠ (other.getColumn j.val j.isLt).name) :
+    (hdisjoint : self.header.Disjoint other.header) :
     (hcat self other).WfColumnNames := by
   rw [wfColumnNames_iff_schema_wf (hcat self other)]
   rw [hcat_schema]
   have hs₁ : self.columns.size = self.schema.size := by simp [Raw.schema, Schema.size]
   have hs₂ : other.columns.size = other.schema.size := by simp [Raw.schema, Schema.size]
-  exact Schema.wf_concat ((wfColumnNames_iff_schema_wf self).mp hwf₁) ((wfColumnNames_iff_schema_wf other).mp hwf₂)
-    fun i j => by
-      have isLt₁ : i.val < self.ncols := by simpa [schema_size_eq] using i.isLt
-      have isLt₂ : j.val < other.ncols := by simpa [schema_size_eq] using j.isLt
-      simpa [schema_getName_eq_getColumn_name i.val isLt₁, schema_getName_eq_getColumn_name j.val isLt₂]
-        using hdisjoint ⟨i, isLt₁⟩ ⟨j, isLt₂⟩
+  exact Schema.wf_concat
+    ((wfColumnNames_iff_schema_wf self).mp hwf₁)
+    ((wfColumnNames_iff_schema_wf other).mp hwf₂)
+    (by simpa [header_eq_schema_header] using hdisjoint)
 
 theorem wfColumnNames_renameColumn (self : Raw) (oldName newName : String)
     (hwf : self.WfColumnNames)

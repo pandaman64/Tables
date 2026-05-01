@@ -2,6 +2,7 @@ module
 
 public import Tables.Table.Raw
 public import Tables.Error
+public import Tables.Data.Array.Disjoint
 
 import Tables.Table.Raw.Sort
 import Std.Data.HashMap
@@ -323,9 +324,7 @@ def vcat? (self other : Table) : Except Error Table :=
 
 def hcat (self : Table) (other : Table)
     (hrows : self.nrows = other.nrows)
-    (hdisjoint :
-      ∀ (i : Fin self.ncols) (j : Fin other.ncols),
-        (self.getColumn i.val i.isLt).name ≠ (other.getColumn j.val j.isLt).name) : Table :=
+    (hdisjoint : self.header.Disjoint other.header) : Table :=
   {
     raw := self.raw.hcat other.raw
     wfColumnSize := wfColumnSize_hcat self.raw other.raw self.wfColumnSize other.wfColumnSize hrows
@@ -343,8 +342,7 @@ private partial def firstColumnNameOverlap (self other : Table) : String := Id.r
 
 def hcat? (self other : Table) : Except Error Table :=
   if hrows : self.nrows = other.nrows then
-    if hd : (∀ (i : Fin self.ncols) (j : Fin other.ncols),
-        (self.getColumn i.val i.isLt).name ≠ (other.getColumn j.val j.isLt).name) then
+    if hd : self.header.Disjoint other.header then
       .ok (self.hcat other hrows hd)
     else
       .error (.overlappingColumnName (firstColumnNameOverlap self other))
@@ -541,10 +539,7 @@ def orderBy (self : Table) (comparators : Array Comparator) : Table :=
     wfColumnNames := wfColumnNames_orderBy self.raw comparators self.wfColumnSize self.wfColumnNames
   }
 
-def crossJoin (self other : Table)
-    (hdisjoint :
-      ∀ (i : Fin self.ncols) (j : Fin other.ncols),
-        (self.getColumn i.val i.isLt).name ≠ (other.getColumn j.val j.isLt).name) : Table :=
+def crossJoin (self other : Table) (hdisjoint : self.header.Disjoint other.header) : Table :=
   {
     raw := self.raw.crossJoin other.raw self.wfColumnSize other.wfColumnSize
     wfColumnSize := wfColumnSize_crossJoin self.raw other.raw self.wfColumnSize other.wfColumnSize
@@ -553,16 +548,13 @@ def crossJoin (self other : Table)
   }
 
 def crossJoin? (self other : Table) : Except Error Table :=
-  if hd : (∀ (i : Fin self.ncols) (j : Fin other.ncols),
-      (self.getColumn i.val i.isLt).name ≠ (other.getColumn j.val j.isLt).name) then
+  if hd : self.header.Disjoint other.header then
     .ok (crossJoin self other hd)
   else
     .error (.overlappingColumnName (firstColumnNameOverlap self other))
 
 def leftJoin (self other : Table) (keys : Array String)
-    (hdisjoint :
-      ∀ (i : Fin self.schema.size) (j : Fin (other.schema.selectNotByNames keys).size),
-        self.schema.getName i.val i.isLt ≠ (other.schema.selectNotByNames keys).getName j.val j.isLt) :
+    (hdisjoint : self.header.Disjoint (other.schema.selectNotByNames keys).header) :
     Table :=
   {
     raw := self.raw.leftJoin other.raw keys self.wfColumnSize other.wfColumnSize
@@ -580,9 +572,7 @@ private partial def firstLeftJoinOverlapName (self other : Table) (keys : Array 
   pure ""
 
 def leftJoin? (self other : Table) (keys : Array String) : Except Error Table :=
-  let oth := other.schema.selectNotByNames keys
-  if hd : (∀ (i : Fin self.schema.size) (j : Fin oth.size),
-      self.schema.getName i.val i.isLt ≠ oth.getName j.val j.isLt) then
+  if hd : self.header.Disjoint (other.schema.selectNotByNames keys).header then
     .ok (leftJoin self other keys hd)
   else
     .error (.overlappingColumnName (firstLeftJoinOverlapName self other keys))
