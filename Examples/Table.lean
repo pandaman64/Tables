@@ -1,7 +1,6 @@
 module
 
-meta import Tables.Table.Basic
-meta import Tables.Table.GroupBy
+meta import Tables.Table
 
 meta section
 
@@ -480,6 +479,11 @@ info: |Last Name |Department ID|Department Name|
 -/
 #guard_msgs in
 #eval employeesWithDeptName_leftJoin.toFormat
+
+theorem employeesWithDeptName_leftJoin_hasColumn_departmentName :
+    employeesWithDeptName_leftJoin.hasColumn "Department Name" := by
+  rw [employeesWithDeptName_leftJoin, Tables.Table.hasColumn_leftJoin_iff]
+  native_decide
 
 -- TODO: Need a typed Row to actually prove that the join is safe.
 def departmentsWithEmployeeCounts : Table :=

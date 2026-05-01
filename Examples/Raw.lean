@@ -1,7 +1,6 @@
 module
 
-meta import Tables.Table.Raw.Basic
-meta import Tables.Table.Raw.Join
+meta import Tables.Table.Raw
 
 open Tables.Table (Raw)
 
