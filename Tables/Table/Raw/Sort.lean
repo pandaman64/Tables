@@ -35,7 +35,7 @@ namespace Tables.Table.Raw
 
 -- We should have Array.sortBy
 def tsort (self : Raw) (key : String) (order : Order) (h₁ : self.hasColumn key) (h₂ : self.WfColumnSize) : Raw :=
-  let dataType := (self.getColumnByName key h₁).dataType
+  let dataType := self[key].dataType
   let compare : Option dataType.toType → Option dataType.toType → Ordering :=
     match order with
     | .ascending => Ord.compare
@@ -47,12 +47,7 @@ def tsort (self : Raw) (key : String) (order : Order) (h₁ : self.hasColumn key
     have h : row.hasNameAndDataType key dataType := by
       rw [Row.hasNameAndDataType_iff_mem_schema]
       simp only [getRow_schema, schema, Array.mem_map, Prod.mk.injEq, row, dataType]
-      exact ⟨
-        self.getColumnByName key h₁,
-        mem_getColumnByName self key h₁,
-        by simp [getColumnByName_name],
-        rfl
-      ⟩
+      exact ⟨self[key], mem_getElem self key h₁, by simp, rfl⟩
     let value := row.getValueByNameAndDataType key dataType h
     map.alter value fun
       | some indices => some (indices.push ⟨i, isLt⟩)

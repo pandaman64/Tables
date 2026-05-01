@@ -124,13 +124,13 @@ def pivotLonger? (self : Table) (names : Array String) (c₁ c₂ : String) : Ex
 def pivotWider? (self : Table) (c₁ c₂ : String) : Except Error Table := do
   if h₁ : self.hasColumn c₁ then
     if h₂ : self.hasColumn c₂ then
-      let col₁ := self.getColumnByName c₁ h₁
+      let col₁ := self[c₁]
       if hdt₁ : col₁.dataType = .string then
         have h : col₁.dataType.toType = String := by
           simp [hdt₁]
         let newColumnNames := collectNewColumnNames (h ▸ col₁.values)
 
-        let dt₂ := (self.getColumnByName c₂ h₂).dataType
+        let dt₂ := self[c₂].dataType
         let groups : HashMap Row (Array (Option String × Option dt₂.toType)) := self.groupBy
           (fun row => row.filter (fun cell => cell.name ≠ c₁ ∧ cell.name ≠ c₂))
           -- Ideally, we should propagate the schema so this can be provably safe.

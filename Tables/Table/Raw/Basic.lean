@@ -152,6 +152,9 @@ def getColumnByName (self : Raw) (name : String) (h : self.hasColumn name) : Col
     grind [hasColumn]
   (self.getColumnByName? name).get isSome
 
+instance : GetElem Raw String Column (fun self name => self.hasColumn name) where
+  getElem self name h := self.getColumnByName name h
+
 /--
 TableAPI: selectColumns (overloading 2/3)
 -/
@@ -170,7 +173,7 @@ def selectColumnsByMask (self : Raw) (mask : Vector Bool self.ncols) : Raw :=
 TableAPI: selectColumns (overloading 3/3)
 -/
 def selectColumnsByName (self : Raw) (names : Array String) (h : ∀ name ∈ names, self.hasColumn name) : Raw :=
-  let columns := names.attach.map fun name => self.getColumnByName name.val (h name.val name.property)
+  let columns := names.attach.map fun name => self[name.val]'(h name.val name.property)
   { columns, nrows := self.nrows }
 
 /--
@@ -234,8 +237,8 @@ def replaceColumn (self : Raw) (column : Column) : Raw :=
   { columns, nrows := self.nrows }
 
 def transformColumn {α} [DataType.OfType α] (self : Raw) (name : String) (h : self.hasColumn name)
-    (f : Option ((self.getColumnByName name h).dataType.toType) → Option α) : Raw :=
-  let newColumn := (self.getColumnByName name h).mapValues f
+    (f : Option (self[name].dataType.toType) → Option α) : Raw :=
+  let newColumn := self[name].mapValues f
   self.replaceColumn newColumn
 
 /--
@@ -352,7 +355,7 @@ def selectMany {α} (self : Raw) (schema : Schema)
   ofRows schema rows h
 
 def completeCases (self : Raw) (column : String) (h : self.hasColumn column) : Array Bool :=
-  let column := self.getColumnByName column h
+  let column := self[column]
   column.values.map fun
     | some _ => true
     | none => false
@@ -360,13 +363,13 @@ def completeCases (self : Raw) (column : String) (h : self.hasColumn column) : A
 def dropna (self : Raw) (h : self.WfColumnSize) : Raw :=
   self.tfilter (fun row => row.cells.all (·.value.isSome)) h
 
-def fillna (self : Raw) (column : String) (h₁ : self.hasColumn column) (replacement : (self.getColumnByName column h₁).dataType.toType) : Raw :=
-  let column := self.getColumnByName column h₁
+def fillna (self : Raw) (column : String) (h₁ : self.hasColumn column) (replacement : self[column].dataType.toType) : Raw :=
+  let column := self[column]
   let newColumn := column.fillna replacement
   self.replaceColumn newColumn
 
 def count (self : Raw) (column : String) (h : self.hasColumn column) : Raw :=
-  let column := self.getColumnByName column h
+  let column := self[column]
   let countMap : HashMap (Option column.dataType.toType) Nat := column.values.foldl (init := ∅) fun map value =>
     map.alter value fun
       | some count => some (count + 1)
@@ -389,7 +392,7 @@ def bin? (self : Raw) (column : String) (n : Nat) : Except Error Raw := do
   if n = 0 then
     throw (.invalidArgument "n must be positive")
   else
-    let some column := self.getColumnByName? column
+    let some column := self[column]?
       | throw (.columnNotFound column)
     match h : column.dataType with
     | .nat =>

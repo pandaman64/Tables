@@ -100,6 +100,9 @@ def getColumnByName? (self : Table) (name : String) : Option Column :=
 def getColumnByName (self : Table) (name : String) (h : self.hasColumn name) : Column :=
   self.raw.getColumnByName name h
 
+instance : GetElem Table String Column (fun self name => self.hasColumn name) where
+  getElem self name h := self.getColumnByName name h
+
 def selectColumns (self : Table) (ns : Array (Fin self.ncols)) (hinj : ns.Nodup) : Table :=
   {
     raw := self.raw.selectColumns ns
@@ -259,7 +262,7 @@ def replaceColumn? (self : Table) (column : Column) : Except Error Table :=
     .error (.mismatchedRowCount self.nrows column.size)
 
 def transformColumn {α} [DataType.OfType α] (self : Table) (name : String) (h : self.hasColumn name)
-    (f : Option ((self.getColumnByName name h).dataType.toType) → Option α) : Table :=
+    (f : Option (self[name].dataType.toType) → Option α) : Table :=
   {
     raw := self.raw.transformColumn name h f
     wfColumnSize := wfColumnSize_transformColumn self.raw name h f self.wfColumnSize
@@ -267,7 +270,7 @@ def transformColumn {α} [DataType.OfType α] (self : Table) (name : String) (h 
   }
 
 def transformColumn? {α} [DataType.OfType α] (self : Table) (name : String)
-    (f : (h : self.hasColumn name) → Option ((self.getColumnByName name h).dataType.toType) → Option α) :
+    (f : (h : self.hasColumn name) → Option (self[name].dataType.toType) → Option α) :
     Except Error Table :=
   if h : self.hasColumn name then
     .ok (self.transformColumn name h (f h))
@@ -416,7 +419,7 @@ def dropna (self : Table) : Table :=
   }
 
 def fillna (self : Table) (column : String) (h₁ : self.hasColumn column)
-    (replacement : (self.getColumnByName column h₁).dataType.toType) : Table :=
+    (replacement : self[column].dataType.toType) : Table :=
   {
     raw := self.raw.fillna column h₁ replacement
     wfColumnSize := wfColumnSize_fillna self.raw column h₁ replacement self.wfColumnSize
@@ -424,7 +427,7 @@ def fillna (self : Table) (column : String) (h₁ : self.hasColumn column)
   }
 
 def fillna? (self : Table) (column : String)
-    (replacement : (h : self.hasColumn column) → (self.getColumnByName column h).dataType.toType) :
+    (replacement : (h : self.hasColumn column) → self[column].dataType.toType) :
     Except Error Table :=
   if h : self.hasColumn column then
     .ok (self.fillna column h (replacement h))

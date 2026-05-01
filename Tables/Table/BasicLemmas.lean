@@ -75,7 +75,7 @@ theorem replaceColumn?_eq_some_iff {self result : Table} {column : Column} :
   grind [replaceColumn?]
 
 theorem transformColumn?_eq_some_iff {α} [DataType.OfType α] {self result : Table} {name : String}
-    {f : (h : self.hasColumn name) → Option ((self.getColumnByName name h).dataType.toType) → Option α} :
+    {f : (h : self.hasColumn name) → Option (self[name].dataType.toType) → Option α} :
     self.transformColumn? name f = .ok result ↔
       ∃ (h : self.hasColumn name), self.transformColumn name h (f h) = result := by
   grind [transformColumn?]
@@ -134,7 +134,7 @@ theorem select?_eq_some_iff {self result : Table} {f : Row → (n : Nat) → n <
     | inr h => grind
 
 theorem fillna?_eq_some_iff {self result : Table} {column : String}
-    {replacement : (h : self.hasColumn column) → (self.getColumnByName column h).dataType.toType} :
+    {replacement : (h : self.hasColumn column) → self[column].dataType.toType} :
     self.fillna? column replacement = .ok result ↔
       ∃ (h : self.hasColumn column), self.fillna column h (replacement h) = result := by
   grind [fillna?]
@@ -199,8 +199,8 @@ theorem selectColumnsByMask_schema (self : Table) (mask : Vector Bool self.ncols
 theorem selectColumnsByName_schema (self : Table) (names : Array String)
     (h : ∀ name ∈ names, self.hasColumn name) (hdupfree : names.Nodup) :
     (self.selectColumnsByName names h hdupfree).schema =
-      Schema.ofSpecs (names.attach.map fun nm => (self.getColumnByName nm.val (h nm.val nm.property)).spec) := by
-  simp [Table.selectColumnsByName, Table.schema, Table.getColumnByName, Raw.selectColumnsByName_schema]
+      Schema.ofSpecs (names.attach.map fun nm => (self[nm.val]'(h nm.val nm.property)).spec) := by
+  simp [Table.selectColumnsByName, Table.schema, Table.getColumnByName, Raw.selectColumnsByName_schema, getElem]
 
 theorem selectColumnsByName_ncols (self : Table) (names : Array String)
     (h : ∀ name ∈ names, self.hasColumn name) (hdupfree : names.Nodup) :
@@ -235,7 +235,7 @@ theorem replaceColumn_schema (self : Table) (column : Column) (hsize : column.si
   simp [Table.replaceColumn, Table.schema, Raw.replaceColumn_schema]
 
 theorem transformColumn_schema {α} [DataType.OfType α] (self : Table) (colName : String) (hcol : self.hasColumn colName)
-    (f : Option ((self.getColumnByName colName hcol).dataType.toType) → Option α) :
+    (f : Option (self[colName].dataType.toType) → Option α) :
     (self.transformColumn colName hcol f).schema = self.schema.replace colName (DataType.OfType.dataType α) := by
   simp [Table.transformColumn, Table.schema, Raw.transformColumn_schema]
 
@@ -295,8 +295,8 @@ theorem dropna_schema (self : Table) :
 
 theorem count_schema (self : Table) (column : String) (h : self.hasColumn column) :
     (self.count column h).schema =
-      Schema.ofSpecs #[("value", (self.getColumnByName column h).dataType), ("count", DataType.nat)] := by
-  simp [Table.count, Table.schema, Table.getColumnByName, Raw.count_schema]
+      Schema.ofSpecs #[("value", self[column].dataType), ("count", DataType.nat)] := by
+  simp [Table.count, Table.schema, Table.getColumnByName, Raw.count_schema, getElem]
 
 theorem bin?_schema (self result : Table) (column : String) (n : Nat) (h : self.bin? column n = .ok result) :
     result.schema = Schema.ofSpecs #[("group", DataType.string), ("count", DataType.nat)] := by
@@ -405,7 +405,7 @@ theorem hasColumn_replaceColumn_iff (self : Table) (column : Column) (hsize : co
   simp [Table.hasColumn, Table.replaceColumn, Raw.hasColumn_replaceColumn_iff]
 
 theorem hasColumn_transformColumn_iff {α} [DataType.OfType α] (self : Table) (colName : String) (hcol : self.hasColumn colName)
-    (f : Option ((self.getColumnByName colName hcol).dataType.toType) → Option α) (name : String) :
+    (f : Option (self[colName].dataType.toType) → Option α) (name : String) :
     (self.transformColumn colName hcol f).hasColumn name ↔ self.hasColumn name := by
   simp [Table.hasColumn, Table.transformColumn, Raw.hasColumn_transformColumn_iff]
 
@@ -480,7 +480,7 @@ theorem hasColumn_dropna_iff (self : Table) (name : String) :
   simp [Table.hasColumn, Table.dropna, Raw.hasColumn_dropna_iff self.raw self.wfColumnSize]
 
 theorem hasColumn_fillna_iff (self : Table) (column : String) (h₁ : self.hasColumn column)
-    (replacement : (self.getColumnByName column h₁).dataType.toType) (name : String) :
+    (replacement : self[column].dataType.toType) (name : String) :
     (self.fillna column h₁ replacement).hasColumn name ↔ self.hasColumn name := by
   simp [Table.hasColumn, Table.fillna, Raw.hasColumn_fillna_iff]
 

@@ -63,9 +63,20 @@ theorem mem_getColumnByName (self : Raw) (name : String) (h : self.hasColumn nam
   unfold getColumnByName getColumnByName?
   grind
 
-theorem getColumnByName?_name_of_some (self : Raw) (nm : String) (c : Column) (h : self.getColumnByName? nm = some c) :
-    c.name = nm := by
+theorem mem_getElem (self : Raw) (name : String) (h : self.hasColumn name) : self[name] ∈ self.columns :=
+  mem_getColumnByName self name h
+
+theorem getColumnByName?_name_of_some (self : Raw) (name : String) (c : Column) (h : self.getColumnByName? name = some c) :
+    c.name = name := by
   grind only [getColumnByName?, → find?_some]
+
+-- theorem getElem?_eq_getColumnByName? (self : Raw) (name : String) :
+--     self[name]? = self.getColumnByName? name := by
+--   sorry
+
+-- theorem getElem?_name_of_some (self : Raw) (name : String) (c : Column) (h : self[name]? = some c) :
+--     c.name = name := by
+--   exact getColumnByName?_name_of_some self name c (by simpa [getElem?_eq_getColumnByName?] using h)
 
 @[simp]
 theorem getColumnByName_name (self : Raw) (nm : String) (h : self.hasColumn nm) :
@@ -73,6 +84,11 @@ theorem getColumnByName_name (self : Raw) (nm : String) (h : self.hasColumn nm) 
   apply getColumnByName?_name_of_some self nm _
   unfold getColumnByName
   grind only [= Option.some_get]
+
+@[simp]
+theorem getElem_name (self : Raw) (name : String) (h : self.hasColumn name) :
+    self[name].name = name :=
+  getColumnByName_name self name h
 
 theorem wfColumnSize_selectColumns
     (self : Raw) (ns : Array (Fin self.ncols)) (hwf : self.WfColumnSize) :
@@ -97,7 +113,7 @@ theorem wfColumnSize_selectColumnsByName
   rw [Array.mem_map] at hc
   obtain ⟨s, hmem, rfl⟩ := hc
   have hcol : self.hasColumn s.1 := h s.1 s.property
-  exact hwf (self.getColumnByName s.1 hcol) (mem_getColumnByName self s.1 hcol)
+  exact hwf self[s.1] (mem_getElem self s.1 hcol)
 
 theorem wfColumnSize_take
     (self : Raw) (n : Nat) (hwf : self.WfColumnSize) (hle : n ≤ self.nrows) : (take self n).WfColumnSize := by
@@ -178,12 +194,12 @@ theorem wfColumnSize_replaceColumn
 
 theorem wfColumnSize_transformColumn
     {α} [DataType.OfType α] (self : Raw) (name : String) (hcol : self.hasColumn name)
-    (f : Option ((getColumnByName self name hcol).dataType.toType) → Option α) (hwf : self.WfColumnSize) :
+    (f : Option (self[name].dataType.toType) → Option α) (hwf : self.WfColumnSize) :
     (transformColumn self name hcol f).WfColumnSize := by
-  have hmem : self.getColumnByName name hcol ∈ self.columns := by
+  have hmem : self[name] ∈ self.columns := by
     have hs' : (self.columns.find? fun col => col.name = name).isSome := by grind [hasColumn]
     simpa [getColumnByName, getColumnByName?] using (get_find?_mem (h := hs'))
-  have hs : ((self.getColumnByName name hcol).mapValues f).size = self.nrows := by
+  have hs : (self[name].mapValues f).size = self.nrows := by
     simp [mapValues_size_eq, hwf _ hmem]
   apply wfColumnSize_replaceColumn
   · exact hs
@@ -289,12 +305,12 @@ theorem wfColumnSize_dropna (self : Raw) (h : self.WfColumnSize) : (dropna self 
   exact wfColumnSize_tfilter self _ h
 
 theorem wfColumnSize_fillna
-    (self : Raw) (column : String) (h₁ : self.hasColumn column) (replacement : (getColumnByName self column h₁).dataType.toType) (hwf : self.WfColumnSize) :
+    (self : Raw) (column : String) (h₁ : self.hasColumn column) (replacement : self[column].dataType.toType) (hwf : self.WfColumnSize) :
     (self.fillna column h₁ replacement).WfColumnSize := by
-  have hcol : (self.getColumnByName column h₁) ∈ self.columns := mem_getColumnByName self column h₁
-  have hsz : ((self.getColumnByName column h₁).fillna replacement).size = self.nrows := by
+  have hcol : self[column] ∈ self.columns := mem_getElem self column h₁
+  have hsz : (self[column].fillna replacement).size = self.nrows := by
     rw [fillna_size_eq]
-    exact hwf (self.getColumnByName column h₁) hcol
+    exact hwf self[column] hcol
   simp [fillna, WfColumnSize]
   apply wfColumnSize_replaceColumn
   · exact hsz
@@ -356,7 +372,7 @@ theorem selectColumnsByMask_schema (self : Raw) (mask : Vector Bool self.ncols) 
 theorem selectColumnsByName_schema (self : Raw) (names : Array String)
     (h : ∀ name ∈ names, self.hasColumn name) :
     (selectColumnsByName self names h).schema =
-      Schema.ofSpecs (names.attach.map fun nm => (self.getColumnByName nm.val (h nm.val nm.property)).spec) := by
+      Schema.ofSpecs (names.attach.map fun nm => (self[nm.val]'(h nm.val nm.property)).spec) := by
   simp [Raw.selectColumnsByName, Raw.schema, Schema.ofSpecs, Schema.ext_iff, Column.spec]
 
 theorem take_schema (self : Raw) (n : Nat) :
@@ -399,7 +415,7 @@ theorem replaceColumn_schema (self : Raw) (column : Column) :
     · grind only [= getElem_map, = Schema.ofSpecs_specs])
 
 theorem transformColumn_schema {α} [DataType.OfType α] (self : Raw) (colName : String) (hcol : self.hasColumn colName)
-    (f : Option ((getColumnByName self colName hcol).dataType.toType) → Option α) :
+    (f : Option (self[colName].dataType.toType) → Option α) :
     (transformColumn self colName hcol f).schema = self.schema.replace colName (DataType.OfType.dataType α) :=
   Schema.ext (by
     dsimp only [Raw.transformColumn, Raw.replaceColumn, Raw.schema, Schema.replace]
@@ -407,7 +423,7 @@ theorem transformColumn_schema {α} [DataType.OfType α] (self : Raw) (colName :
     · simp [Array.size_map]
     · intro i hi₁ hi₂
       have hi₁' : i < self.columns.size := by simpa [Array.size_map] using hi₁
-      simp only [Array.getElem_map, Column.mapValues_name, getColumnByName_name]
+      simp only [Column.mapValues_name, getColumnByName_name, getElem]
       by_cases h : (self.columns[i]'hi₁').name = colName <;> simp [h, Column.mapValues])
 
 theorem selectRows_schema (self : Raw) (ns : Array (Fin self.nrows)) (h : self.WfColumnSize) :
@@ -491,12 +507,12 @@ theorem dropna_schema (self : Raw) (h : self.WfColumnSize) :
 -- `fillna_schema` can replace multiple columns with the same name but different data types
 -- if the table is not well-formed.
 -- theorem fillna_schema (self : Raw) (column : String) (h₁ : self.hasColumn column)
---     (replacement : (getColumnByName self column h₁).dataType.toType) :
+--     (replacement : self[column].dataType.toType) :
 --     (self.fillna column h₁ replacement).schema = self.schema := by
 --   sorry
 
 theorem count_schema (self : Raw) (column : String) (h : self.hasColumn column) :
-    (count self column h).schema = Schema.ofSpecs #[("value", (self.getColumnByName column h).dataType), ("count", DataType.nat)] := by
+    (count self column h).schema = Schema.ofSpecs #[("value", self[column].dataType), ("count", DataType.nat)] := by
   unfold Raw.count Raw.ofColumns
   simp [Raw.schema, Schema.ofSpecs]
 
@@ -636,7 +652,7 @@ theorem wfColumnNames_replaceColumn (self : Raw) (column : Column)
 
 theorem wfColumnNames_transformColumn {α} [DataType.OfType α] (self : Raw) (name : String)
     (hcol : self.hasColumn name)
-    (f : Option ((getColumnByName self name hcol).dataType.toType) → Option α)
+    (f : Option (self[name].dataType.toType) → Option α)
     (hwf : self.WfColumnNames) :
     (transformColumn self name hcol f).WfColumnNames := by
   rw [wfColumnNames_iff_schema_wf (transformColumn self name hcol f)]
@@ -723,7 +739,7 @@ theorem wfColumnNames_dropna (self : Raw) (h : self.WfColumnSize)
   simpa [wfColumnNames_iff_schema_wf, dropna_schema] using (wfColumnNames_iff_schema_wf self).mp hwf
 
 theorem wfColumnNames_fillna (self : Raw) (column : String) (h₁ : self.hasColumn column)
-    (replacement : (getColumnByName self column h₁).dataType.toType)
+    (replacement : self[column].dataType.toType)
     (hwf : self.WfColumnNames) :
     (fillna self column h₁ replacement).WfColumnNames := by
   rw [wfColumnNames_iff_schema_wf (fillna self column h₁ replacement)]
@@ -764,7 +780,7 @@ theorem hasColumn_selectColumnsByName_iff (self : Raw) (names : Array String)
     (h : ∀ name ∈ names, self.hasColumn name) (name : String) :
     (self.selectColumnsByName names h).hasColumn name ↔ name ∈ names := by
   rw [hasColumn_iff_schema_hasName, selectColumnsByName_schema, Schema.ofSpecs_hasName_iff]
-  grind [Column.spec, getColumnByName_name, mem_iff_getElem]
+  grind [Column.spec, getElem_name, mem_iff_getElem]
 
 theorem hasColumn_take_iff (self : Raw) (n : Nat) (name : String) :
     (self.take n).hasColumn name ↔ self.hasColumn name := by
@@ -798,7 +814,7 @@ theorem hasColumn_replaceColumn_iff (self : Raw) (column : Column) (name : Strin
   simp [Raw.hasColumn_iff_schema_hasName, replaceColumn_schema]
 
 theorem hasColumn_transformColumn_iff {α} [DataType.OfType α] (self : Raw) (colName : String) (hcol : self.hasColumn colName)
-    (f : Option ((self.getColumnByName colName hcol).dataType.toType) → Option α) (name : String) :
+    (f : Option (self[colName].dataType.toType) → Option α) (name : String) :
     (self.transformColumn colName hcol f).hasColumn name ↔ self.hasColumn name := by
   simp [Raw.hasColumn_iff_schema_hasName, transformColumn_schema]
 
@@ -866,7 +882,7 @@ theorem hasColumn_dropna_iff (self : Raw) (h : self.WfColumnSize) (name : String
   simp [Raw.hasColumn_iff_schema_hasName, dropna_schema]
 
 theorem hasColumn_fillna_iff (self : Raw) (column : String) (h₁ : self.hasColumn column)
-    (replacement : (self.getColumnByName column h₁).dataType.toType) (name : String) :
+    (replacement : self[column].dataType.toType) (name : String) :
     (self.fillna column h₁ replacement).hasColumn name ↔ self.hasColumn name := by
   apply hasColumn_replaceColumn_iff
 
