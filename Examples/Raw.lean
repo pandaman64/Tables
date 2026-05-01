@@ -17,6 +17,14 @@ def students : Raw :=
     Column.ofRawValues "favorite color" #[some "blue", some "green", some "red"],
   ]
 
+/--
+info: |name |age|favorite color|
+|-----|---|--------------|
+|Bob  |12 |blue          |
+|Alice|17 |green         |
+|Eve  |13 |red           |
+-/
+#guard_msgs in
 #eval students.toFormat
 
 def studentsMissing : Raw :=
@@ -26,6 +34,14 @@ def studentsMissing : Raw :=
     Column.ofRawValues "favorite color" #[some "blue", some "green", none],
   ]
 
+/--
+info: |name |age |favorite color|
+|-----|----|--------------|
+|Bob  |null|blue          |
+|Alice|17  |green         |
+|Eve  |13  |null          |
+-/
+#guard_msgs in
 #eval studentsMissing.toFormat
 
 def employees : Raw :=
@@ -38,6 +54,17 @@ def employees : Raw :=
     ],
   ]
 
+/--
+info: |Last Name |Department ID|
+|----------|-------------|
+|Rafferty  |31           |
+|Jones     |33           |
+|Heisenberg|33           |
+|Robinson  |34           |
+|Smith     |34           |
+|Williams  |null         |
+-/
+#guard_msgs in
 #eval employees.toFormat
 
 def departments : Raw :=
@@ -46,6 +73,15 @@ def departments : Raw :=
     Column.ofRawValues "Department Name" #[some "Sales", some "Engineering", some "Clerical", some "Marketing"],
   ]
 
+/--
+info: |Department ID|Department Name|
+|-------------|---------------|
+|31           |Sales          |
+|33           |Engineering    |
+|34           |Clerical       |
+|35           |Marketing      |
+-/
+#guard_msgs in
 #eval departments.toFormat
 
 def jellyAnon : Raw :=
@@ -62,6 +98,21 @@ def jellyAnon : Raw :=
     Column.ofRawValues "purple"   #[some false, some false, some false, some false, some false, some false, some false, some false, some false, some false],
   ]
 
+/--
+info: |get acne|red  |black|white|green|yellow|brown|orange|pink |purple|
+|--------|-----|-----|-----|-----|------|-----|------|-----|------|
+|true    |false|false|false|true |false |false|true  |false|false |
+|true    |false|true |false|true |true  |false|false |false|false |
+|false   |false|false|false|true |false |false|false |true |false |
+|false   |false|false|false|false|true  |false|false |false|false |
+|false   |false|false|false|false|true  |false|false |true |false |
+|true    |false|true |false|false|false |false|true  |true |false |
+|false   |false|true |false|false|false |false|false |true |false |
+|true    |false|false|false|false|false |true |true  |false|false |
+|true    |false|false|false|false|false |false|true  |false|false |
+|false   |true |false|false|false|true  |true |false |true |false |
+-/
+#guard_msgs in
 #eval jellyAnon.toFormat
 
 def jellyNamed : Raw :=
@@ -81,6 +132,21 @@ def jellyNamed : Raw :=
     Column.ofRawValues "purple"   #[some false, some false, some false, some false, some false, some false, some false, some false, some false, some false],
   ]
 
+/--
+info: |name    |get acne|red  |black|white|green|yellow|brown|orange|pink |purple|
+|--------|--------|-----|-----|-----|-----|------|-----|------|-----|------|
+|Emily   |true    |false|false|false|true |false |false|true  |false|false |
+|Jacob   |true    |false|true |false|true |true  |false|false |false|false |
+|Emma    |false   |false|false|false|true |false |false|false |true |false |
+|Aidan   |false   |false|false|false|false|true  |false|false |false|false |
+|Madison |false   |false|false|false|false|true  |false|false |true |false |
+|Ethan   |true    |false|true |false|false|false |false|true  |true |false |
+|Hannah  |false   |false|true |false|false|false |false|false |true |false |
+|Matthew |true    |false|false|false|false|false |true |true  |false|false |
+|Hailey  |true    |false|false|false|false|false |false|true  |false|false |
+|Nicholas|false   |true |false|false|false|true  |true |false |true |false |
+-/
+#guard_msgs in
 #eval jellyNamed.toFormat
 
 def gradebook : Raw :=
@@ -95,6 +161,14 @@ def gradebook : Raw :=
     Column.ofRawValues "final" #[some 87, some 85, some 77],
   ]
 
+/--
+info: |name |age|quiz1|quiz2|midterm|quiz3|quiz4|final|
+|-----|---|-----|-----|-------|-----|-----|-----|
+|Bob  |12 |8    |9    |77     |7    |9    |87   |
+|Alice|17 |6    |8    |88     |8    |7    |85   |
+|Eve  |13 |7    |9    |84     |8    |8    |77   |
+-/
+#guard_msgs in
 #eval gradebook.toFormat
 
 def gradebookMissing : Raw :=
@@ -109,6 +183,14 @@ def gradebookMissing : Raw :=
     Column.ofRawValues "final" #[some 87, some 85, some 77],
   ]
 
+/--
+info: |name |age|quiz1|quiz2|midterm|quiz3|quiz4|final|
+|-----|---|-----|-----|-------|-----|-----|-----|
+|Bob  |12 |8    |9    |77     |7    |9    |87   |
+|Alice|17 |6    |8    |88     |null |7    |85   |
+|Eve  |13 |null |9    |84     |8    |8    |77   |
+-/
+#guard_msgs in
 #eval gradebookMissing.toFormat
 
 def gradebookSeq : Raw :=
@@ -120,10 +202,26 @@ def gradebookSeq : Raw :=
     Column.ofRawValues "final" #[some 87, some 85, some 77],
   ]
 
+/--
+info: |name |age|quizzes      |midterm|final|
+|-----|---|-------------|-------|-----|
+|Bob  |12 |#[8, 9, 7, 9]|77     |87   |
+|Alice|17 |#[6, 8, 8, 7]|88     |85   |
+|Eve  |13 |#[7, 9, 8, 8]|84     |77   |
+-/
+#guard_msgs in
 #eval gradebookSeq.toFormat
 
 def studentsGrades := students.leftJoin gradebook #["name", "age"] (by native_decide) (by native_decide)
 
+/--
+info: |name |age|favorite color|quiz1|quiz2|midterm|quiz3|quiz4|final|
+|-----|---|--------------|-----|-----|-------|-----|-----|-----|
+|Bob  |12 |blue          |8    |9    |77     |7    |9    |87   |
+|Alice|17 |green         |6    |8    |88     |8    |7    |85   |
+|Eve  |13 |red           |7    |9    |84     |8    |8    |77   |
+-/
+#guard_msgs in
 #eval! studentsGrades.toFormat
 
 end Tables.Examples

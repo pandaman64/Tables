@@ -1,6 +1,7 @@
 name = "Tables"
 version = "0.1.0"
-defaultTargets = ["tables"]
+defaultTargets = ["Tables"]
+testDriver = "TablesExamples"
 
 [leanOptions]
 autoImplicit = false
@@ -13,6 +14,8 @@ rev = "main"
 [[lean_lib]]
 name = "Tables"
 
-[[lean_exe]]
-name = "tables"
-root = "Main"
+# `lake test` builds this library; failures are elaboration errors in the examples.
+[[lean_lib]]
+name = "TablesExamples"
+globs = ["Examples.+"]
+needs = ["Tables"]
