@@ -27,13 +27,17 @@ private def countTrueFn (xs : Array (Option Bool)) : Option Nat :=
   some <| xs.count (some true)
 
 def students : Table :=
-  unwrapTable <| Table.ofColumns? #[
+  Table.ofColumns #[
     Column.ofValues "name" #["Bob", "Alice", "Eve"],
     Column.ofValues "age" #[12, 17, 13],
     Column.ofValues "favorite color" #["blue", "green", "red"],
-  ]
+  ] (by native_decide) (by native_decide)
 
 #eval students.toFormat
+
+def studentAges : Column := students["age"]'(by native_decide)
+
+#eval studentAges.toString
 
 def studentsAgeAvgByFavoriteColor : Table :=
   unwrapTable <|
@@ -49,36 +53,36 @@ def studentsAgeByFavoriteColorWide : Table :=
 #eval studentsAgeByFavoriteColorWide.toFormat
 
 def studentsMissing : Table :=
-  unwrapTable <| Table.ofColumns? #[
+  Table.ofColumns #[
     Column.ofValues "name" #["Bob", "Alice", "Eve"],
     Column.ofRawValues "age" #[none, some 17, some 13],
     Column.ofRawValues "favorite color" #[some "blue", some "green", none],
-  ]
+  ] (by native_decide) (by native_decide)
 
 #eval studentsMissing.toFormat
 
 def employees : Table :=
-  unwrapTable <| Table.ofColumns? #[
+  Table.ofColumns #[
     Column.ofValues "Last Name" #[
       "Rafferty", "Jones", "Heisenberg", "Robinson", "Smith", "Williams"
     ],
     Column.ofRawValues "Department ID" #[
       some 31, some 33, some 33, some 34, some 34, none
     ],
-  ]
+  ] (by native_decide) (by native_decide)
 
 #eval employees.toFormat
 
 def departments : Table :=
-  unwrapTable <| Table.ofColumns? #[
+  Table.ofColumns #[
     Column.ofValues "Department ID" #[31, 33, 34, 35],
     Column.ofValues "Department Name" #["Sales", "Engineering", "Clerical", "Marketing"],
-  ]
+  ] (by native_decide) (by native_decide)
 
 #eval departments.toFormat
 
 def jellyAnon : Table :=
-  unwrapTable <| Table.ofColumns? #[
+  Table.ofColumns #[
     Column.ofValues "get acne" #[true, true, false, false, false, true, false, true, true, false],
     Column.ofValues "red"      #[false, false, false, false, false, false, false, false, false, true],
     Column.ofValues "black"    #[false, true,  false, false, false, true,  true,  false, false, false],
@@ -89,12 +93,12 @@ def jellyAnon : Table :=
     Column.ofValues "orange"   #[true,  false, false, false, false, true,  false, true,  true,  false],
     Column.ofValues "pink"     #[false, false, true,  false, true,  true,  true,  false, false, true],
     Column.ofValues "purple"   #[false, false, false, false, false, false, false, false, false, false],
-  ]
+  ] (by native_decide) (by native_decide)
 
 #eval jellyAnon.toFormat
 
 def jellyNamed : Table :=
-  unwrapTable <| Table.ofColumns? #[
+  Table.ofColumns #[
     Column.ofValues "name" #[
       "Emily", "Jacob", "Emma", "Aidan", "Madison", "Ethan", "Hannah", "Matthew", "Hailey", "Nicholas"
     ],
@@ -108,7 +112,7 @@ def jellyNamed : Table :=
     Column.ofValues "orange"   #[true,  false, false, false, false, true,  false, true,  true,  false],
     Column.ofValues "pink"     #[false, false, true,  false, true,  true,  true,  false, false, true],
     Column.ofValues "purple"   #[false, false, false, false, false, false, false, false, false, false],
-  ]
+  ] (by native_decide) (by native_decide)
 
 #eval jellyNamed.toFormat
 
@@ -122,7 +126,7 @@ def jellyNamedCountsByAcneAndBrown : Table :=
 #eval jellyNamedCountsByAcneAndBrown.toFormat
 
 def gradebook : Table :=
-  unwrapTable <| Table.ofColumns? #[
+  Table.ofColumns #[
     Column.ofValues "name" #["Bob", "Alice", "Eve"],
     Column.ofValues "age" #[12, 17, 13],
     Column.ofValues "quiz1" #[8, 6, 7],
@@ -131,7 +135,7 @@ def gradebook : Table :=
     Column.ofValues "quiz3" #[7, 8, 8],
     Column.ofValues "quiz4" #[9, 7, 8],
     Column.ofValues "final" #[87, 85, 77],
-  ]
+  ] (by native_decide) (by native_decide)
 
 #eval gradebook.toFormat
 
@@ -149,7 +153,7 @@ def gradebookRoundTrip : Table :=
 #eval gradebookRoundTrip.toFormat
 
 def gradebookMissing : Table :=
-  unwrapTable <| Table.ofColumns? #[
+  Table.ofColumns #[
     Column.ofValues "name" #["Bob", "Alice", "Eve"],
     Column.ofValues "age" #[12, 17, 13],
     Column.ofRawValues "quiz1" #[some 8, some 6, none],
@@ -158,18 +162,18 @@ def gradebookMissing : Table :=
     Column.ofRawValues "quiz3" #[some 7, none, some 8],
     Column.ofValues "quiz4" #[9, 7, 8],
     Column.ofValues "final" #[87, 85, 77],
-  ]
+  ] (by native_decide) (by native_decide)
 
 #eval gradebookMissing.toFormat
 
 def gradebookSeq : Table :=
-  unwrapTable <| Table.ofColumns? #[
+  Table.ofColumns #[
     Column.ofValues "name" #["Bob", "Alice", "Eve"],
     Column.ofValues "age" #[12, 17, 13],
     Column.ofValues "quizzes" #[#[8, 9, 7, 9], #[6, 8, 8, 7], #[7, 9, 8, 8]],
     Column.ofValues "midterm" #[77, 88, 84],
     Column.ofValues "final" #[87, 85, 77],
-  ]
+  ] (by native_decide) (by native_decide)
 
 #eval gradebookSeq.toFormat
 
@@ -179,11 +183,11 @@ def gradebookQuizzesLong : Table :=
 #eval gradebookQuizzesLong.toFormat
 
 def weeklyHoursNested : Table :=
-  unwrapTable <| Table.ofColumns? #[
+  Table.ofColumns #[
     Column.ofValues "employee" #["Ann", "Bob"],
     Column.ofValues "week" #[#[1, 2, 3], #[1, 2]],
     Column.ofValues "hours" #[#[8, 7, 6], #[5, 9]],
-  ]
+  ] (by native_decide) (by native_decide)
 
 #eval weeklyHoursNested.toFormat
 
@@ -193,7 +197,7 @@ def weeklyHoursLong : Table :=
 #eval weeklyHoursLong.toFormat
 
 def studentsGrades : Table :=
-  unwrapTable <| students.leftJoin? gradebook #["name", "age"]
+  students.leftJoin gradebook #["name", "age"] (by native_decide)
 
 #eval studentsGrades.toFormat
 
@@ -219,6 +223,7 @@ def studentsByAgeAscThenNameDesc : Table :=
 
 #eval studentsByAgeAscThenNameDesc.toFormat
 
+-- TODO: Need a typed Row to actually prove that the join is safe.
 def employeesWithDeptName : Table :=
   unwrapTable <|
     Table.join?
@@ -236,6 +241,7 @@ def employeesWithDeptName_leftJoin : Table :=
 -- "Williams" has no Department ID, so Department Name becomes missing (none).
 #eval employeesWithDeptName_leftJoin.toFormat
 
+-- TODO: Need a typed Row to actually prove that the join is safe.
 def departmentsWithEmployeeCounts : Table :=
   unwrapTable <|
     Table.groupJoin?
